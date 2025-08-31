@@ -1,0 +1,18 @@
+﻿@model IEnumerable<Meow.Web.Services.WeatherDto>
+
+<h2>From API: Weather Demo</h2>
+<table class="table">
+    <thead>
+        <tr><th>Date</th><th>Temp (°C)</th><th>Summary</th></tr>
+    </thead>
+    <tbody>
+        @foreach (var x in Model)
+        {
+            <tr>
+                <td>@x.Date</td>
+                <td>@x.TemperatureC</td>
+                <td>@x.Summary</td>
+            </tr>
+        }
+    </tbody>
+</table>
