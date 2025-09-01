@@ -11,6 +11,13 @@ builder.Services.AddHttpClient<Meow.Web.Services.IBackendApi, Meow.Web.Services.
     client.BaseAddress = new Uri(baseUrl!);
 });
 
+builder.Services.AddHttpClient<IBackendApi, BackendApi>(client =>
+{
+    // BaseAddress + "api/Members" → 組成完整請求位址
+    var baseUrl = builder.Configuration["BackendApi:BaseUrl"];
+    client.BaseAddress = new Uri(baseUrl!);
+});
+
 
 var app = builder.Build();
 

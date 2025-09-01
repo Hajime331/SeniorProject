@@ -1,3 +1,4 @@
+using Meow.Api.Data;
 using Microsoft.EntityFrameworkCore;
 using System;
 
@@ -9,8 +10,8 @@ builder.Services.AddControllers();
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
-//builder.Services.AddDbContext<AppDbContext>(opt =>
-//    opt.UseSqlServer(builder.Configuration.GetConnectionString("AppDb")));
+builder.Services.AddDbContext<AppDbContext>(opt =>
+    opt.UseSqlServer(builder.Configuration.GetConnectionString("AppDb")));
 
 
 var app = builder.Build();

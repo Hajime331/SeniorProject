@@ -1,0 +1,9 @@
+﻿@model IEnumerable<Meow.Web.Services.TagDto>
+
+<h2>Tags from API</h2>
+<ul>
+    @foreach (var t in Model)
+    {
+        <li>@t.TagID - @t.Name</li>
+    }
+</ul>
