@@ -16,5 +16,8 @@ namespace Meow.Web.Services
 
         // Member API
         Task<IEnumerable<MemberDto>> GetMembersAsync();
+
+        // 建立會員
+        Task<MemberDto?> CreateMemberAsync(MemberCreateRequest req);
     }
 }

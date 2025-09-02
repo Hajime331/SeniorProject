@@ -5,6 +5,18 @@
 }
 
 <h2 class="mb-3">會員清單</h2>
+<p>
+    <a class="btn btn-primary" asp-controller="Members" asp-action="Create">新增會員</a>
+</p>
+
+
+@*清單頁顯示成功訊息*@
+@if (TempData["Success"] is string ok && !string.IsNullOrWhiteSpace(ok))
+{
+    <div class="alert alert-success" role="alert">
+        @ok
+    </div>
+}
 
 <table class="table table-striped table-bordered align-middle">
     <thead>

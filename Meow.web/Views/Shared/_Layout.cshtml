@@ -32,6 +32,9 @@
                             <a class="nav-link" asp-controller="Members" asp-action="Index">會員</a>
                         </li>
                     </ul>
+                    <p>
+                        <a class="btn btn-primary" asp-controller="Members" asp-action="Create">新增會員</a>
+                    </p>
                 </div>
             </div>
         </nav>
@@ -40,6 +43,12 @@
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
+        <main class="container py-3">
+            @RenderBody()
+
+            <partial name="_AlertPartial" />
+        </main>
+
     </div>
 
     <footer class="border-top footer text-muted">

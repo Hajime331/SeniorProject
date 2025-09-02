@@ -1,0 +1,60 @@
+﻿@model Meow.Web.Models.MemberCreateVm
+
+@{
+    ViewData["Title"] = "新增會員";
+}
+
+<h2 class="mb-3">新增會員</h2>
+
+<!-- 全域錯誤（例如：Email 已被使用）會顯示在這裡 -->
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+<form asp-action="Create" asp-controller="Members" method="post" novalidate>
+    @Html.AntiForgeryToken() <!-- 對應 [ValidateAntiForgeryToken]，避免 CSRF -->
+
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" type="email" autocomplete="email" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Nickname" class="form-label"></label>
+        <input asp-for="Nickname" class="form-control" />
+        <span asp-validation-for="Nickname" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Password" class="form-label"></label>
+        <input asp-for="Password" class="form-control" autocomplete="new-password" />
+        <span asp-validation-for="Password" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="ConfirmPassword" class="form-label"></label>
+        <input asp-for="ConfirmPassword" class="form-control" autocomplete="new-password" />
+        <span asp-validation-for="ConfirmPassword" class="text-danger"></span>
+    </div>
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">建立</button>
+        <a asp-action="Index" asp-controller="Members" class="btn btn-secondary">返回清單</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const form = document.querySelector('form[method="post"]');
+            if (!form) return;
+            form.addEventListener('submit', function (e) {
+                const btn = form.querySelector('button[type="submit"]');
+                if (btn) {
+                    btn.disabled = true;
+                    btn.textContent = '送出中…';
+                }
+            });
+        })();
+    </script>
+}
