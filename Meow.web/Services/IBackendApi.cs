@@ -19,5 +19,8 @@ namespace Meow.Web.Services
 
         // 建立會員
         Task<MemberDto?> CreateMemberAsync(MemberCreateRequest req);
+
+        // 新增：登入（呼叫 API 的 /api/Members/login）
+        Task<MemberDto?> LoginAsync(string email, string password);
     }
 }

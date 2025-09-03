@@ -1,9 +1,11 @@
 ﻿using Meow.Web.Models;
 using Meow.Web.Services;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Authorization;
 
 namespace Meow.Web.Controllers
 {
+    [Authorize]
     // 只做「叫服務、把資料丟給 View」
     public class MembersController(IBackendApi api) : Controller
     {

@@ -1,0 +1,50 @@
+﻿@model Meow.Web.Models.LoginVm
+@{
+    ViewData["Title"] = "登入";
+}
+
+<h2 class="mb-3">登入</h2>
+
+<div asp-validation-summary="ModelOnly" class="text-danger"></div>
+
+<form asp-action="Login" asp-controller="Auth" method="post" novalidate>
+    @Html.AntiForgeryToken()
+
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" autocomplete="username" />
+        <span asp-validation-for="Email" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Password" class="form-label"></label>
+        <input asp-for="Password" class="form-control" autocomplete="current-password" />
+        <span asp-validation-for="Password" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3 form-check">
+        <input asp-for="RememberMe" class="form-check-input" />
+        <label asp-for="RememberMe" class="form-check-label"></label>
+    </div>
+
+    <input type="hidden" asp-for="ReturnUrl" />
+
+    <div class="d-flex gap-2">
+        <button type="submit" class="btn btn-primary">登入</button>
+        <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">返回</a>
+    </div>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        (function () {
+            const form = document.querySelector('form[method="post"]');
+            if (!form) return;
+            form.addEventListener('submit', function () {
+                const btn = form.querySelector('button[type="submit"]');
+                if (btn) { btn.disabled = true; btn.textContent = '登入中…'; }
+            });
+        })();
+    </script>
+}

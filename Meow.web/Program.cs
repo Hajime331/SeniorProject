@@ -1,6 +1,21 @@
 using Meow.Web.Services;
+using Microsoft.AspNetCore.Authentication.Cookies;
 
 var builder = WebApplication.CreateBuilder(args);
+
+// 1) 加入 Cookie Authentication
+builder.Services
+    .AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
+    .AddCookie(options =>
+    {
+        options.LoginPath = "/Auth/Login";          // 未登入被要求登入時導向的頁面
+        options.LogoutPath = "/Auth/Logout";        // 可選：登出路徑
+        options.AccessDeniedPath = "/Auth/Denied";  // 可選：權限不足導向
+        options.ExpireTimeSpan = TimeSpan.FromHours(8); // Cookie 存活時間
+        options.SlidingExpiration = true;               // 期間內活動會延長有效期
+        // options.Cookie.Name = "Meow.Auth";          // 可自訂 Cookie 名稱
+        // options.Cookie.SameSite = SameSiteMode.Lax; // 預設 Lax 夠用
+    });
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -34,6 +49,7 @@ app.UseStaticFiles();
 
 app.UseRouting();
 
+app.UseAuthentication(); // 開啟 Cookie 登入功能
 app.UseAuthorization();
 
 app.MapControllerRoute(

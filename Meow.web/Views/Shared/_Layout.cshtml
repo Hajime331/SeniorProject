@@ -32,9 +32,26 @@
                             <a class="nav-link" asp-controller="Members" asp-action="Index">會員</a>
                         </li>
                     </ul>
-                    <p>
-                        <a class="btn btn-primary" asp-controller="Members" asp-action="Create">新增會員</a>
-                    </p>
+                    <ul class="navbar-nav ms-auto">
+                        @if (User?.Identity?.IsAuthenticated ?? false)
+                        {
+                            <li class="nav-item">
+                                <span class="navbar-text me-2">Hi, @User.Identity.Name</span>
+                            </li>
+                            <li class="nav-item">
+                                <form asp-controller="Auth" asp-action="Logout" method="post" class="d-inline">
+                                    @Html.AntiForgeryToken()
+                                    <button type="submit" class="btn btn-link nav-link">登出</button>
+                                </form>
+                            </li>
+                        }
+                        else
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Auth" asp-action="Login">登入</a>
+                            </li>
+                        }
+                    </ul>
                 </div>
             </div>
         </nav>

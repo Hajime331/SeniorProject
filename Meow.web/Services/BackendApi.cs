@@ -44,5 +44,17 @@ namespace Meow.Web.Services
             var created = await resp.Content.ReadFromJsonAsync<MemberDto>();
             return created;
         }
+
+        public async Task<MemberDto?> LoginAsync(string email, string password)
+        {
+            var body = new { email, password };
+            var resp = await _http.PostAsJsonAsync("api/Members/login", body);
+
+            if (resp.StatusCode == HttpStatusCode.Unauthorized)
+                throw new InvalidOperationException("Email 或密碼不正確");
+
+            resp.EnsureSuccessStatusCode();
+            return await resp.Content.ReadFromJsonAsync<MemberDto>();
+        }
     }
 }
