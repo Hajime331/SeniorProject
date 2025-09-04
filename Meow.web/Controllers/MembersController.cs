@@ -5,7 +5,7 @@ using Microsoft.AspNetCore.Authorization;
 
 namespace Meow.Web.Controllers
 {
-    [Authorize]
+    [Authorize]  // 只要有登入就能使用
     // 只做「叫服務、把資料丟給 View」
     public class MembersController(IBackendApi api) : Controller
     {
