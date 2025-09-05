@@ -87,8 +87,11 @@ namespace Meow.Web.Controllers
             return RedirectToAction("Index", "Home");
         }
 
-        // （可選）權限不足頁
         [HttpGet]
-        public IActionResult Denied() => View();
+        public IActionResult AccessDenied()
+        {
+            Response.StatusCode = 403; // 保留正確狀態碼
+            return View();
+        }
     }
 }

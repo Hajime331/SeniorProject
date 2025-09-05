@@ -1,0 +1,25 @@
+﻿@model AccountProfileVm
+@{
+    ViewData["Title"] = "會員中心 - 個人資料";
+}
+<partial name="~/Views/Shared/_AlertPartial.cshtml" />
+
+<h1 class="h4 mb-3">個人資料</h1>
+
+<form asp-action="Profile" method="post">
+    <div class="mb-3">
+        <label asp-for="Email" class="form-label"></label>
+        <input asp-for="Email" class="form-control" readonly />
+    </div>
+    <div class="mb-3">
+        <label asp-for="Nickname" class="form-label"></label>
+        <input asp-for="Nickname" class="form-control" />
+        <span asp-validation-for="Nickname" class="text-danger"></span>
+    </div>
+
+    <button type="submit" class="btn btn-dark">儲存</button>
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+}

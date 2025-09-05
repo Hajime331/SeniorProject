@@ -1,0 +1,14 @@
+﻿@{
+    ViewData["Title"] = "沒有權限";
+}
+<div class="container my-5">
+    <div class="alert alert-warning">
+        <h4 class="alert-heading mb-2">存取被拒</h4>
+        <p>你沒有權限瀏覽此頁面（需要管理員身分）。</p>
+        <hr />
+        <div class="d-flex gap-2">
+            <a asp-controller="Home" asp-action="Index" class="btn btn-secondary">回前台首頁</a>
+            <a asp-controller="Auth" asp-action="Login" class="btn btn-outline-dark">切換帳號登入</a>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,72 @@
+﻿@model Meow.Web.Areas.Admin.Models.DashboardVm
+@{
+    ViewData["Title"] = "Dashboard";
+}
+
+@*當 API 失敗時，TempData["Error"] 會在這裡顯示*@
+<partial name="~/Views/Shared/_AlertPartial.cshtml" />
+
+<h1 class="h3 mb-4">管理後台 Dashboard</h1>
+
+<div class="row g-3">
+    <div class="col-md-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted">會員總數</div>
+                <div class="display-6 fw-bold">@Model.TotalMembers</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-md-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="mb-0">最新註冊（5）</h5>
+                    <a class="btn btn-sm btn-outline-secondary" asp-area="" asp-controller="Members" asp-action="Index">
+                        前往會員清單
+                    </a>
+                </div>
+                @if (Model.RecentMembers.Any())
+                {
+                    <div class="table-responsive">
+                        <table class="table align-middle mb-0">
+                            <thead>
+                                <tr>
+                                    <th>暱稱</th>
+                                    <th>Email</th>
+                                    <th>建立時間</th>
+                                    <th>是否管理員</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var m in Model.RecentMembers)
+                                {
+                                    <tr>
+                                        <td>@m.Nickname</td>
+                                        <td>@m.Email</td>
+                                        <td>@m.CreatedAt.ToString("yyyy-MM-dd HH:mm")</td>
+                                        <td>
+                                            @if (m.IsAdmin)
+                                            {
+                                                <span class="badge bg-dark">Admin</span>
+                                            }
+                                            else
+                                            {
+                                                <span class="badge bg-secondary">Member</span>
+                                            }
+                                        </td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                }
+                else
+                {
+                    <div class="text-muted">尚無資料</div>
+                }
+            </div>
+        </div>
+    </div>
+</div>

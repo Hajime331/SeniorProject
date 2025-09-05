@@ -14,13 +14,37 @@ namespace Meow.Web.Services
         // Tag API
         Task<IEnumerable<TagDto>> GetTagsAsync();
 
-        // Member API
+
+
+        // 供「前台 Members 清單頁」使用
+        // 抓全部會員清單
         Task<IEnumerable<MemberDto>> GetMembersAsync();
+
+
+
+        // 供「後台 Dashboard（效率版）」使用
+        // 會員總數
+        Task<int> GetMemberCountAsync();
+
+        // 近期會員（依建立時間排序，預設取 5 筆）
+        Task<List<MemberDto>> GetRecentMembersAsync(int take = 5);
+
+
 
         // 建立會員
         Task<MemberDto?> CreateMemberAsync(MemberCreateRequest req);
 
         // 新增：登入（呼叫 API 的 /api/Members/login）
         Task<MemberDto?> LoginAsync(string email, string password);
+
+
+
+        // 供「會員個人資料頁」使用
+        // 取得單一會員資料
+        Task<MemberDto> GetMemberAsync(Guid id);
+
+        // 更新會員暱稱
+        Task UpdateMemberNicknameAsync(Guid id, string nickname);
+
     }
 }

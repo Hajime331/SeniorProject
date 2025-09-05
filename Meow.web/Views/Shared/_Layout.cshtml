@@ -31,6 +31,12 @@
                         <li class="nav-item">
                             <a class="nav-link" asp-controller="Members" asp-action="Index">會員</a>
                         </li>
+                        @if (User.HasClaim("IsAdmin", "True"))
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-area="Admin" asp-controller="Dashboard" asp-action="Index">管理後台</a>
+                            </li>
+                        }
                     </ul>
                     <ul class="navbar-nav ms-auto">
                         @if (User?.Identity?.IsAuthenticated ?? false)
