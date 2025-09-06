@@ -6,7 +6,13 @@ using Meow.Web.Services;
 public class AccountController : Controller
 {
     private readonly IBackendApi _api;
-    public AccountController(IBackendApi api) => _api = api;
+    private readonly ILogger<AccountController> _logger;
+
+    public AccountController(IBackendApi api, ILogger<AccountController> logger)
+    {
+        _api = api;
+        _logger = logger;
+    }
 
     [HttpGet]
     public async Task<IActionResult> Profile()
@@ -32,8 +38,8 @@ public class AccountController : Controller
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "更新暱稱失敗");
             TempData["Error"] = "更新暱稱失敗，請稍後再試。";
-            // 可記 log：ex
             return View(vm);
         }
     }

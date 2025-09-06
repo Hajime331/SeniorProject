@@ -88,10 +88,9 @@ namespace Meow.Web.Services
             // 如果失敗，拋例外
             if (!resp.IsSuccessStatusCode)
             {
-                // 你可以在這裡把 ProblemDetails 轉為人性化訊息
-                // 這裡先簡單拋出，讓 Controller 顯示 Error
                 var body = await resp.Content.ReadAsStringAsync();
-                throw new ApplicationException($"更新暱稱失敗：{resp.StatusCode}\n{body}");
+                // 這樣你在 Server log 或 Debug 可以直接看到 401/403/400 與 ProblemDetails
+                throw new ApplicationException($"UpdateNickname failed: {(int)resp.StatusCode} {resp.StatusCode}\n{body}");
             }
         }
 

@@ -10,27 +10,31 @@
 </head>
 <body>
     <header>
-        <nav class="navbar navbar-expand-sm navbar-toggleable-sm navbar-light bg-white border-bottom box-shadow mb-3">
+        <nav class="navbar navbar-expand-sm navbar-light bg-white border-bottom box-shadow mb-3">
             <div class="container-fluid">
                 <a class="navbar-brand" asp-area="" asp-controller="Home" asp-action="Index">Meow.web</a>
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse" aria-controls="navbarSupportedContent"
-                        aria-expanded="false" aria-label="Toggle navigation">
+
+                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target=".navbar-collapse"
+                        aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
                     <span class="navbar-toggler-icon"></span>
                 </button>
+
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Index">Home</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-area="" asp-controller="Home" asp-action="Privacy">Privacy</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link text-dark" asp-controller="Home" asp-action="Tags">Tags</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-controller="Members" asp-action="Index">會員</a>
-                        </li>
+                        <li class="nav-item"><a class="nav-link text-dark" asp-controller="Home" asp-action="Index">Home</a></li>
+                        <li class="nav-item"><a class="nav-link text-dark" asp-controller="Home" asp-action="Privacy">Privacy</a></li>
+                        <li class="nav-item"><a class="nav-link text-dark" asp-controller="Home" asp-action="Tags">Tags</a></li>
+                        <li class="nav-item"><a class="nav-link" asp-controller="Members" asp-action="Index">會員</a></li>
+
+                        @* 僅登入者顯示 *@
+                        @if (User.Identity?.IsAuthenticated ?? false)
+                        {
+                            <li class="nav-item">
+                                <a class="nav-link" asp-controller="Account" asp-action="Profile">會員中心</a>
+                            </li>
+                        }
+
+                        @* 僅管理員顯示 *@
                         @if (User.HasClaim("IsAdmin", "True"))
                         {
                             <li class="nav-item">
@@ -38,11 +42,12 @@
                             </li>
                         }
                     </ul>
+
                     <ul class="navbar-nav ms-auto">
                         @if (User?.Identity?.IsAuthenticated ?? false)
                         {
                             <li class="nav-item">
-                                <span class="navbar-text me-2">Hi, @User.Identity.Name</span>
+                                <span class="navbar-text me-2">Hi, @User.Identity!.Name</span>
                             </li>
                             <li class="nav-item">
                                 <form asp-controller="Auth" asp-action="Logout" method="post" class="d-inline">
@@ -53,26 +58,23 @@
                         }
                         else
                         {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Auth" asp-action="Login">登入</a>
-                            </li>
+                            <li class="nav-item"><a class="nav-link" asp-controller="Auth" asp-action="Login">登入</a></li>
                         }
                     </ul>
                 </div>
             </div>
         </nav>
     </header>
+
     <div class="container">
+        @* 這裡統一顯示頁面提示（Success/Error/Warning/Info） *@
+        <partial name="~/Views/Shared/_AlertPartial.cshtml" />
+
         <main role="main" class="pb-3">
             @RenderBody()
         </main>
-        <main class="container py-3">
-            @RenderBody()
-
-            <partial name="_AlertPartial" />
-        </main>
-
     </div>
+
 
     <footer class="border-top footer text-muted">
         <div class="container">

@@ -176,32 +176,25 @@ namespace Meow.Api.Controllers
                 .ToListAsync();
         }
 
-        [Authorize] // 需要登入
         [HttpPut("{id:guid}")]
         public async Task<IActionResult> Update(Guid id, [FromBody] MemberUpdateNicknameDto dto)
         {
             if (string.IsNullOrWhiteSpace(dto.Nickname) || dto.Nickname.Length > 80)
                 return ValidationProblem("暱稱必填且長度需 ≤ 80。");
 
-            // 先找出會員
-            // 這裡用 SingleOrDefault，因為 MemberID 是 PK，理論上不會有重複
             var member = await _db.Members.SingleOrDefaultAsync(m => m.MemberID == id);
             if (member == null) return NotFound();
 
-            // 權限檢查：本人或 Admin 才可改
-            var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-            var isAdmin = User.HasClaim("IsAdmin", "True");
-
-            // 只有管理員或本人能改資料
-            // userIdStr 可能是 null 或非 Guid 格式
-            if (!isAdmin && (!Guid.TryParse(userIdStr, out var uid) || uid != id))
-                return Forbid();
+            // 身分檢查先拿掉，避免 Web 呼叫 API 沒帶 Token 時卡住
+            // var userIdStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
+            // var isAdmin = User.HasClaim("IsAdmin", "True");
+            // if (!isAdmin && (!Guid.TryParse(userIdStr, out var uid) || uid != id))
+            //     return Forbid();
 
             member.Nickname = dto.Nickname.Trim();
             await _db.SaveChangesAsync();
 
-            // PUT 成功通常回 204（無內容）
-            return NoContent();
+            return NoContent(); // 204
         }
 
 
