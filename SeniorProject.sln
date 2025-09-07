@@ -7,6 +7,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meow.Api", "Meow.api\Meow.A
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meow.Web", "Meow.web\Meow.Web.csproj", "{542CC3A4-A64E-4FB3-9245-77FEA19BD2BD}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Meow.Shared", "Meow.Shared\Meow.Shared.csproj", "{67EFA69E-7905-EAB0-0086-19F72EF14ED4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -21,6 +23,10 @@ Global
 		{542CC3A4-A64E-4FB3-9245-77FEA19BD2BD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{542CC3A4-A64E-4FB3-9245-77FEA19BD2BD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{542CC3A4-A64E-4FB3-9245-77FEA19BD2BD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{67EFA69E-7905-EAB0-0086-19F72EF14ED4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{67EFA69E-7905-EAB0-0086-19F72EF14ED4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{67EFA69E-7905-EAB0-0086-19F72EF14ED4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{67EFA69E-7905-EAB0-0086-19F72EF14ED4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

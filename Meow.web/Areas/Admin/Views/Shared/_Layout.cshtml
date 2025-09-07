@@ -16,7 +16,7 @@
             </div>
             <div class="navbar-nav ms-auto">
                 <span class="navbar-text me-3">@User.Identity?.Name</span>
-                <form asp-controller="Auth" asp-action="Logout" method="post" class="d-inline">
+                <form asp-area="" asp-controller="Auth" asp-action="Logout" method="post" class="d-inline">
                     <button type="submit" class="btn btn-sm btn-outline-light">登出</button>
                 </form>
             </div>

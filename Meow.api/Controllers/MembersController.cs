@@ -1,5 +1,5 @@
 ﻿using Meow.Api.Data;
-using Meow.Api.Dtos;
+using Meow.Shared.Dtos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -198,5 +198,26 @@ namespace Meow.Api.Controllers
         }
 
 
+        [HttpPut("{id:guid}/password")]
+        public async Task<IActionResult> ChangePassword(Guid id, [FromBody] ChangePasswordDto dto)
+        {
+            if (!ModelState.IsValid) return ValidationProblem(ModelState);
+
+            var member = await _db.Members.SingleOrDefaultAsync(m => m.MemberID == id);
+            if (member == null) return NotFound();
+
+            // 驗證目前密碼
+            if (!BCrypt.Net.BCrypt.Verify(dto.CurrentPassword, member.PasswordHash))
+                return ValidationProblem("目前密碼不正確。");
+
+            // 可加自訂密碼規則（例如含數字大小寫等）
+            if (dto.NewPassword == dto.CurrentPassword)
+                return ValidationProblem("新密碼不可與目前密碼相同。");
+
+            // 變更密碼
+            member.PasswordHash = BCrypt.Net.BCrypt.HashPassword(dto.NewPassword);
+            await _db.SaveChangesAsync();
+            return NoContent(); // 204
+        }
     }
 }

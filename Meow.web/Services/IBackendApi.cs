@@ -1,4 +1,5 @@
-﻿using Meow.Web.Models;
+﻿using Meow.Shared.Dtos;
+using Meow.Web.Models;
 
 namespace Meow.Web.Services
 {
@@ -45,6 +46,10 @@ namespace Meow.Web.Services
 
         // 更新會員暱稱
         Task UpdateMemberNicknameAsync(Guid id, string nickname);
+
+        // 更新會員密碼
+        Task ChangePasswordAsync(Guid id, ChangePasswordDto dto);
+
 
     }
 }

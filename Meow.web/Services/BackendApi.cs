@@ -1,4 +1,5 @@
-﻿using Meow.Web.Models;
+﻿using Meow.Shared.Dtos;
+using Meow.Web.Models;
 using System.Net;
 using System.Net.Http.Json;
 using static System.Net.WebRequestMethods;
@@ -27,7 +28,7 @@ namespace Meow.Web.Services
         {
             // 相對路徑 "api/Members"，真正的主機位址稍後用 BaseAddress 設定。
             var list = await _http.GetFromJsonAsync<IEnumerable<MemberDto>>("api/Members");
-            return list ?? Enumerable.Empty<MemberDto>();
+            return list ?? [];
         }
 
         // 呼叫 API 建立會員
@@ -94,6 +95,15 @@ namespace Meow.Web.Services
             }
         }
 
+        public async Task ChangePasswordAsync(Guid id, ChangePasswordDto dto)
+        {
+            var resp = await _http.PutAsJsonAsync($"api/Members/{id}/password", dto);
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                throw new ApplicationException($"ChangePassword failed: {(int)resp.StatusCode} {resp.StatusCode}\n{body}");
+            }
+        }
 
     }
 }
