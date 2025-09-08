@@ -1,7 +1,7 @@
 ﻿// Meow.Api/Dtos/MemberCreateDto.cs
 using System.ComponentModel.DataAnnotations;
 
-namespace Meow.Shared.Dtos;
+namespace Meow.Shared.Dtos.Accounts;
 
 public class MemberCreateDto
 {

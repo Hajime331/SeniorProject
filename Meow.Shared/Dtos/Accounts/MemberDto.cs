@@ -1,6 +1,6 @@
-﻿namespace Meow.Shared.Dtos;
+﻿namespace Meow.Shared.Dtos.Accounts;
 
-public class MemberListDto
+public class MemberDto
 {
     public Guid MemberID { get; set; }
     public string Email { get; set; } = default!;
@@ -10,3 +10,4 @@ public class MemberListDto
     public bool IsAdmin { get; set; }
     public DateTime? LastLoginAt { get; set; }
 }
+

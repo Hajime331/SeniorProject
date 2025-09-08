@@ -1,4 +1,6 @@
-﻿using Meow.Shared.Dtos;
+﻿using Meow.Shared.Dtos.Accounts;
+using Meow.Shared.Dtos.Common;
+using Meow.Shared.Dtos.TrainingSessions;
 using Meow.Web.Models;
 
 namespace Meow.Web.Services
@@ -50,6 +52,9 @@ namespace Meow.Web.Services
         // 更新會員密碼
         Task ChangePasswordAsync(Guid id, ChangePasswordDto dto);
 
-
+        
+        
+        Task<PagedResultDto<TrainingSessionListItemDto>> GetTrainingSessionsAsync(
+        Guid memberId, DateTime? from, DateTime? to, int page, int pageSize);
     }
 }

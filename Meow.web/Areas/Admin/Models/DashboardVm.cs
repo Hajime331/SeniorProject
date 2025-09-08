@@ -1,4 +1,4 @@
-﻿using Meow.Shared.Dtos;
+﻿using Meow.Shared.Dtos.Accounts;
 using Meow.Web.Models;
 
 namespace Meow.Web.Areas.Admin.Models

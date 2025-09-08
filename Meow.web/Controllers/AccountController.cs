@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Meow.Web.Services;
 using Meow.Shared.Dtos;
+using Meow.Shared.Dtos.Accounts;
 
 [Authorize]
 public class AccountController : Controller

@@ -1,4 +1,4 @@
-﻿namespace Meow.Shared.Dtos;
+﻿namespace Meow.Shared.Dtos.Accounts;
 
 public class MemberUpdateNicknameDto
 {

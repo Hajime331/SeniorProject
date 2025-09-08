@@ -1,4 +1,8 @@
-﻿using Meow.Shared.Dtos;
+﻿using Meow.Shared.Dtos.Accounts;
+using Microsoft.AspNetCore.WebUtilities;
+using System.Globalization;
+using Meow.Shared.Dtos.Common;
+using Meow.Shared.Dtos.TrainingSessions;
 using Meow.Web.Models;
 using System.Net;
 using System.Net.Http.Json;
@@ -9,7 +13,14 @@ namespace Meow.Web.Services
     public class BackendApi : IBackendApi
     {
         private readonly HttpClient _http;
-        public BackendApi(HttpClient http) => _http = http;
+        private readonly IConfiguration _config;
+
+        public BackendApi(HttpClient http, IConfiguration config)
+        {
+            _http = http;
+            _config = config;
+            _http.BaseAddress = new Uri(_config["BackendApi:BaseUrl"]!); // e.g. https://localhost:7001/
+        }
 
         public async Task<IEnumerable<WeatherDto>> GetWeatherAsync()
         {
@@ -105,5 +116,23 @@ namespace Meow.Web.Services
             }
         }
 
+
+        public async Task<PagedResultDto<TrainingSessionListItemDto>> GetTrainingSessionsAsync(
+        Guid memberId, DateTime? from, DateTime? to, int page, int pageSize)
+        {
+            var qs = new Dictionary<string, string?>
+            {
+                ["memberId"] = memberId.ToString(),
+                ["page"] = page.ToString(CultureInfo.InvariantCulture),
+                ["pageSize"] = pageSize.ToString(CultureInfo.InvariantCulture),
+                // 只在有值時帶上日期（避免後端把 null 當預設）
+                ["from"] = from?.ToString("yyyy-MM-dd"),
+                ["to"] = to?.ToString("yyyy-MM-dd")
+            };
+
+            var url = QueryHelpers.AddQueryString("api/TrainingSessions", qs!);
+            var resp = await _http.GetFromJsonAsync<PagedResultDto<TrainingSessionListItemDto>>(url);
+            return resp!;
+        }
     }
 }

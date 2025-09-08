@@ -1,5 +1,5 @@
 ﻿using Meow.Api.Data;
-using Meow.Shared.Dtos;
+using Meow.Shared.Dtos.Accounts;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -13,7 +13,10 @@ namespace Meow.Api.Controllers
     {
         private readonly AppDbContext _db; // ← 你的 DbContext 名稱
 
-        public MembersController(AppDbContext db) => _db = db;
+        public MembersController(AppDbContext db)
+        {
+            _db = db;
+        }
 
         // 查全部會員（不含密碼雜湊）
         [HttpGet] // GET /api/Members
@@ -69,16 +72,16 @@ namespace Meow.Api.Controllers
         public async Task<IActionResult> Create([FromBody] MemberCreateDto input) 
         {
             // 1. 標準化 Email：去頭尾空白、統一小寫，用來檢查重複
-            var emailLower = input.Email.Trim().ToLowerInvariant();
+            var normalized = input.Email.Trim().ToLowerInvariant();
 
             // 2. 查是否已存在（只讀查詢用 AsNoTracking）
             var exists = await _db.Members
                 .AsNoTracking()
-                .AnyAsync(m => m.EmailNormalized == emailLower);
+                .AnyAsync(m => m.EmailNormalized == normalized);
             if (exists)
             {
                 // 2a. 有衝突就回 409，這比回 400 更精準（表示資源狀態衝突）
-                return Conflict(new { message = "Email 已被使用" });
+                return Conflict("Email 已被使用");
             }
 
             // 3. 產生密碼雜湊（BCrypt 內含隨機鹽值，安全性足夠）
@@ -86,7 +89,7 @@ namespace Meow.Api.Controllers
 
             // 4. 建立 Entity 並設定初值（UTC 時間、狀態、管理者預設 false）
             // 注意：EmailNormalized 是計算欄位，不用手動賦值
-            var entity = new Member
+            var member = new Member
             {
                 MemberID = Guid.NewGuid(),
                 Email = input.Email.Trim(),
@@ -99,23 +102,23 @@ namespace Meow.Api.Controllers
             };
 
             // 5. 寫入資料庫
-            _db.Members.Add(entity);
+            _db.Members.Add(member);
             await _db.SaveChangesAsync();
 
             // 6. 組回傳 DTO（不回密碼欄位）
             var dto = new MemberListDto
             {
-                MemberID = entity.MemberID,
-                Email = entity.Email,
-                Nickname = entity.Nickname,
-                CreatedAt = entity.CreatedAt,
-                Status = entity.Status,
-                IsAdmin = entity.IsAdmin,
-                LastLoginAt = entity.LastLoginAt
+                MemberID = member.MemberID,
+                Email = member.Email,
+                Nickname = member.Nickname,
+                CreatedAt = member.CreatedAt,
+                Status = member.Status,
+                IsAdmin = member.IsAdmin,
+                LastLoginAt = member.LastLoginAt
             };
 
             // 7. 回傳 201 建立成功，並帶上 Location 標頭
-            return CreatedAtAction(nameof(GetOne), new { id = entity.MemberID }, dto);
+            return CreatedAtAction(nameof(GetOne), new { id = member.MemberID }, dto);
         }
 
         [HttpPost("login")]
@@ -125,10 +128,10 @@ namespace Meow.Api.Controllers
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Login([FromBody] MemberLoginDto input)
         {
-            var emailLower = input.Email.Trim().ToLowerInvariant();
+            var normalized = input.Email.Trim().ToLowerInvariant();
 
             var m = await _db.Members
-                .FirstOrDefaultAsync(x => x.EmailNormalized == emailLower);
+                .FirstOrDefaultAsync(x => x.EmailNormalized == normalized);
 
             // 不要暴露「帳號不存在」細節，統一回 401
             if (m is null || !BCrypt.Net.BCrypt.Verify(input.Password, m.PasswordHash))
