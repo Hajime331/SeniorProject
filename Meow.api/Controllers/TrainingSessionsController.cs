@@ -91,4 +91,143 @@ public class TrainingSessionsController : ControllerBase
             PageSize = pageSize
         });
     }
+
+    [HttpPost] // POST /api/TrainingSessions?memberId=...
+    public async Task<ActionResult<TrainingSessionDetailDto>> Create(
+    [FromQuery] Guid memberId,
+    [FromBody] TrainingSessionCreateDto dto)
+    {
+        // 參數基本檢查
+        if (memberId == Guid.Empty) return BadRequest("memberId is required.");
+        if (dto is null || dto.SetID == Guid.Empty) return BadRequest("SetID is required.");
+
+        // 1) 取出 Set 與其 Items（為了複製成 session items）
+        var set = await _db.TrainingSets
+            .AsNoTracking()
+            .Include(s => s.TrainingSetItems.OrderBy(i => i.OrderNo))
+            .ThenInclude(i => i.Video)
+            .FirstOrDefaultAsync(s => s.SetID == dto.SetID);
+
+        if (set is null) return NotFound("TrainingSet not found.");
+
+        // 2) 建立一筆新的 Session（StartedAt 用 UTC）
+        var session = new TrainingSession
+        {
+            SessionID = Guid.NewGuid(),
+            MemberID = memberId,
+            SetID = set.SetID,
+            StartedAt = DateTime.UtcNow,
+            CompletedFlag = false,
+            Notes = dto.Notes,
+            CaloriesBurned = null,
+            PointsAwarded = null
+        };
+
+        // 3) 由 SetItem 複製成 SessionItem（先不帶成績）
+        foreach (var si in set.TrainingSetItems.OrderBy(x => x.OrderNo))
+        {
+            session.TrainingSessionItems.Add(new TrainingSessionItem
+            {
+                SessionItemID = Guid.NewGuid(),
+                SessionID = session.SessionID,
+                SetItemID = si.SetItemID,
+                VideoID = si.VideoID,
+                OrderNo = si.OrderNo,
+                Status = "Done", // 預設；之後可依 UI 改
+                ActualReps = null,
+                ActualWeight = null,
+                ActualDurationSec = null,
+                ActualRestSec = null,
+                RoundsDone = null,
+                Note = null
+            });
+        }
+
+        _db.TrainingSessions.Add(session);
+        await _db.SaveChangesAsync();
+
+        // 4) 重新查一次（不追蹤）→ 投影成 DetailDto，包含 Items 與 VideoTitle
+        var result = await _db.TrainingSessions
+            .AsNoTracking()
+            .Where(s => s.SessionID == session.SessionID)
+            .Select(s => new TrainingSessionDetailDto
+            {
+                SessionID = s.SessionID,
+                MemberID = s.MemberID,
+                SetID = s.SetID,
+                SetName = s.Set.Name,          // 導覽屬性
+                StartedAt = s.StartedAt,
+                EndedAt = s.EndedAt,
+                CompletedFlag = s.CompletedFlag,
+                Notes = s.Notes,
+                CaloriesBurned = s.CaloriesBurned,
+                PointsAwarded = s.PointsAwarded,
+                Items = s.TrainingSessionItems
+                    .OrderBy(i => i.OrderNo)
+                    .Select(i => new TrainingSessionItemDto
+                    {
+                        SessionItemID = i.SessionItemID,
+                        SetItemID = i.SetItemID,
+                        VideoID = i.VideoID,
+                        OrderNo = i.OrderNo,
+                        Status = i.Status,
+                        ActualReps = i.ActualReps,
+                        ActualWeight = i.ActualWeight,
+                        ActualDurationSec = i.ActualDurationSec,
+                        ActualRestSec = i.ActualRestSec,
+                        RoundsDone = i.RoundsDone,
+                        Note = i.Note,
+                        VideoTitle = i.Video.Title      // 方便前端顯示
+                    })
+                    .ToList()
+            })
+            .FirstAsync();
+
+        // 201 + Location
+        return CreatedAtAction(nameof(GetById), new { id = result.SessionID }, result);
+    }
+
+    // 供 CreatedAtAction 導航使用：GET /api/TrainingSessions/{id}
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<TrainingSessionDetailDto>> GetById(Guid id)
+    {
+        var dto = await _db.TrainingSessions
+            .AsNoTracking()
+            .Where(s => s.SessionID == id)
+            .Select(s => new TrainingSessionDetailDto
+            {
+                SessionID = s.SessionID,
+                MemberID = s.MemberID,
+                SetID = s.SetID,
+                SetName = s.Set.Name,
+                StartedAt = s.StartedAt,
+                EndedAt = s.EndedAt,
+                CompletedFlag = s.CompletedFlag,
+                Notes = s.Notes,
+                CaloriesBurned = s.CaloriesBurned,
+                PointsAwarded = s.PointsAwarded,
+                Items = s.TrainingSessionItems
+                    .OrderBy(i => i.OrderNo)
+                    .Select(i => new TrainingSessionItemDto
+                    {
+                        SessionItemID = i.SessionItemID,
+                        SetItemID = i.SetItemID,
+                        VideoID = i.VideoID,
+                        OrderNo = i.OrderNo,
+                        Status = i.Status,
+                        ActualReps = i.ActualReps,
+                        ActualWeight = i.ActualWeight,
+                        ActualDurationSec = i.ActualDurationSec,
+                        ActualRestSec = i.ActualRestSec,
+                        RoundsDone = i.RoundsDone,
+                        Note = i.Note,
+                        VideoTitle = i.Video.Title
+                    })
+                    .ToList()
+            })
+            .FirstOrDefaultAsync();
+
+        if (dto is null) return NotFound();
+        return Ok(dto);
+    }
 }

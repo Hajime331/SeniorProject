@@ -80,7 +80,9 @@ namespace Meow.Web.Services
 
         // 非同步地取得最新的 N 筆會員清單
         public async Task<List<MemberDto>> GetRecentMembersAsync(int take = 5)
-            => await _http.GetFromJsonAsync<List<MemberDto>>($"api/Members/recent?take={take}");
+        {
+            return await _http.GetFromJsonAsync<List<MemberDto>>($"api/Members/recent?take={take}");
+        }
 
 
         // 供「會員個人資料頁」使用
@@ -116,7 +118,8 @@ namespace Meow.Web.Services
             }
         }
 
-
+      
+        // 取得會員的訓練紀錄清單（分頁、可篩選日期區間）
         public async Task<PagedResultDto<TrainingSessionListItemDto>> GetTrainingSessionsAsync(
         Guid memberId, DateTime? from, DateTime? to, int page, int pageSize)
         {
@@ -133,6 +136,22 @@ namespace Meow.Web.Services
             var url = QueryHelpers.AddQueryString("api/TrainingSessions", qs!);
             var resp = await _http.GetFromJsonAsync<PagedResultDto<TrainingSessionListItemDto>>(url);
             return resp!;
+        }
+
+
+        // 新增：開始新的訓練課表
+        public async Task<TrainingSessionDetailDto> StartTrainingSessionAsync(Guid memberId, TrainingSessionCreateDto dto)
+        {
+            var url = QueryHelpers.AddQueryString("api/TrainingSessions", new Dictionary<string, string?>
+            {
+                ["memberId"] = memberId.ToString()
+            });
+
+            var resp = await _http.PostAsJsonAsync(url, dto);
+            resp.EnsureSuccessStatusCode();
+
+            var result = await resp.Content.ReadFromJsonAsync<TrainingSessionDetailDto>();
+            return result!;
         }
     }
 }

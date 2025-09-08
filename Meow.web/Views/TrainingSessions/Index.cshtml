@@ -1,0 +1,110 @@
+﻿@model Meow.Web.ViewModels.TrainingSessions.TrainingSessionListVm
+@using System.Globalization
+
+@{
+    ViewData["Title"] = "我的訓練紀錄";
+    int totalPages = (int)Math.Ceiling((double)Model.TotalCount / Model.PageSize);
+    string fmt(DateTime dt) => dt.ToLocalTime().ToString("yyyy/MM/dd HH:mm", CultureInfo.InvariantCulture);
+    string dateVal(DateTime? d) => d.HasValue ? d.Value.ToString("yyyy-MM-dd") : "";
+}
+
+<h2 class="mb-3">@ViewData["Title"]</h2>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <label class="form-label">From</label>
+        <input type="date" name="from" value="@dateVal(Model.From)" class="form-control" />
+    </div>
+    <div class="col-auto">
+        <label class="form-label">To</label>
+        <input type="date" name="to" value="@dateVal(Model.To)" class="form-control" />
+    </div>
+    <div class="col-auto align-self-end">
+        <button type="submit" class="btn btn-primary">篩選</button>
+    </div>
+</form>
+
+@if (Model.Items.Count == 0)
+{
+    <div class="alert alert-secondary">目前沒有符合條件的訓練紀錄。</div>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+        @foreach (var s in Model.Items)
+        {
+            var status = s.CompletedFlag ? "完成" : "進行中";
+            var durationMin = s.EndedAt.HasValue
+            ? (int)Math.Max(0, (s.EndedAt.Value - s.StartedAt).TotalMinutes)
+            : (int)Math.Max(0, (DateTime.UtcNow - s.StartedAt).TotalMinutes);
+
+            <div class="col">
+                <div class="card h-100 shadow-sm">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <h5 class="card-title mb-1">@s.SetName</h5>
+                            <span class="badge @(s.CompletedFlag ? "bg-success" : "bg-warning text-dark")">
+                                @status
+                            </span>
+                        </div>
+                        <div class="small text-muted mb-2">
+                            開始：@fmt(s.StartedAt)
+                            @if (s.EndedAt.HasValue)
+                            {
+                                <span>｜結束：@fmt(s.EndedAt.Value)</span>
+                            }
+                        </div>
+
+                        <ul class="list-unstyled mb-2">
+                            <li>時長：約 @durationMin 分鐘</li>
+                            @if (s.CaloriesBurned.HasValue)
+                            {
+                                <li>熱量：@s.CaloriesBurned kcal</li>
+                            }
+                            @if (s.PointsAwarded.HasValue)
+                            {
+                                <li>罐頭點數：@s.PointsAwarded</li>
+                            }
+                        </ul>
+
+                        @if (!string.IsNullOrWhiteSpace(s.Notes))
+                        {
+                            <p class="card-text">@s.Notes</p>
+                        }
+                    </div>
+                    <div class="card-footer bg-transparent border-0 d-flex gap-2">
+                        <a asp-controller="TrainingSessions" asp-action="Detail" asp-route-id="@s.SessionID"
+                           class="btn btn-outline-primary btn-sm">查看</a>
+                        @* 之後可以加「繼續訓練」或「刪除」 *@
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+
+    <nav class="mt-4" aria-label="pagination">
+        <ul class="pagination">
+            <li class="page-item @(Model.Page <= 1 ? "disabled" : "")">
+                <a class="page-link"
+                   asp-controller="TrainingSessions" asp-action="Index"
+                   asp-route-page="@(Model.Page - 1)"
+                   asp-route-pageSize="@Model.PageSize"
+                   asp-route-from="@(Model.From?.ToString("yyyy-MM-dd"))"
+                   asp-route-to="@(Model.To?.ToString("yyyy-MM-dd"))">上一頁</a>
+            </li>
+
+            <li class="page-item disabled">
+                <span class="page-link">第 @Model.Page / @totalPages 頁（共 @Model.TotalCount 筆）</span>
+            </li>
+
+            <li class="page-item @(Model.Page >= totalPages ? "disabled" : "")">
+                <a class="page-link"
+                   asp-controller="TrainingSessions" asp-action="Index"
+                   asp-route-page="@(Model.Page + 1)"
+                   asp-route-pageSize="@Model.PageSize"
+                   asp-route-from="@(Model.From?.ToString("yyyy-MM-dd"))"
+                   asp-route-to="@(Model.To?.ToString("yyyy-MM-dd"))">下一頁</a>
+            </li>
+        </ul>
+    </nav>
+}

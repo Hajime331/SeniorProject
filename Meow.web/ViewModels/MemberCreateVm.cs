@@ -1,6 +1,6 @@
 ﻿using System.ComponentModel.DataAnnotations;
 
-namespace Meow.Web.Models
+namespace Meow.Web.ViewModels
 {
     public class MemberCreateVm
     {

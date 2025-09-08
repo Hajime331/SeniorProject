@@ -52,9 +52,13 @@ namespace Meow.Web.Services
         // 更新會員密碼
         Task ChangePasswordAsync(Guid id, ChangePasswordDto dto);
 
-        
-        
+
+        // 供「會員訓練紀錄頁」使用
+        // 取得會員的訓練紀錄清單（分頁、可篩選日期區間）
         Task<PagedResultDto<TrainingSessionListItemDto>> GetTrainingSessionsAsync(
         Guid memberId, DateTime? from, DateTime? to, int page, int pageSize);
+
+        // 取得單一訓練紀錄的詳細資料
+        Task<TrainingSessionDetailDto> StartTrainingSessionAsync(Guid memberId, TrainingSessionCreateDto dto);
     }
 }

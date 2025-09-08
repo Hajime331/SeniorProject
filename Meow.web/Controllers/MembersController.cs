@@ -2,6 +2,7 @@
 using Meow.Web.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
+using Meow.Web.ViewModels;
 
 namespace Meow.Web.Controllers
 {
