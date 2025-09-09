@@ -58,7 +58,16 @@ namespace Meow.Web.Services
         Task<PagedResultDto<TrainingSessionListItemDto>> GetTrainingSessionsAsync(
         Guid memberId, DateTime? from, DateTime? to, int page, int pageSize);
 
-        // 取得單一訓練紀錄的詳細資料
+        // 開始新的訓練紀錄
         Task<TrainingSessionDetailDto> StartTrainingSessionAsync(Guid memberId, TrainingSessionCreateDto dto);
+
+        // 取得單一訓練紀錄的詳細資料
+        Task<TrainingSessionDetailDto> GetTrainingSessionAsync(Guid sessionId);
+        
+        // 完成訓練紀錄（包含訓練項目）
+        Task<TrainingSessionDetailDto> CompleteTrainingSessionAsync(Guid sessionId, TrainingSessionCompleteDto dto);
+
+
+        Task<TrainingSessionItemDto> UpdateTrainingSessionItemAsync(TrainingSessionItemUpdateDto dto);
     }
 }

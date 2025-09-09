@@ -230,4 +230,96 @@ public class TrainingSessionsController : ControllerBase
         if (dto is null) return NotFound();
         return Ok(dto);
     }
+
+
+    // PUT /api/TrainingSessions/{id}/complete
+    // 完成訓練：寫入 EndedAt 與 CompletedFlag=true（外加可選的 CaloriesBurned/PointsAwarded/Notes），回傳更新後的明細。
+    [HttpPut("{id:guid}/complete")]
+    public async Task<ActionResult<TrainingSessionDetailDto>> Complete(Guid id, [FromBody] TrainingSessionCompleteDto dto)
+    {
+        var session = await _db.TrainingSessions
+            .Include(s => s.TrainingSessionItems)
+            .FirstOrDefaultAsync(s => s.SessionID == id);
+
+        if (session is null) return NotFound();
+
+        // 1) 決定結束時間（預設用現在 UTC；也可用 dto.EndedAt）
+        var ended = (dto?.EndedAt ?? DateTime.UtcNow);
+        if (ended < session.StartedAt) ended = session.StartedAt; // 防守：避免倒退
+
+        // 2) 寫入狀態
+        session.EndedAt = ended;
+        session.CompletedFlag = dto?.CompletedFlag ?? true;
+        session.CaloriesBurned = dto?.CaloriesBurned;
+        session.PointsAwarded = dto?.PointsAwarded;
+
+        // dto 是 null 就整體回 null，不拋例外
+        // string.IsNullOrWhiteSpace(...)：檢查字串是否為 null、空字串、或只有空白
+        if (!string.IsNullOrWhiteSpace(dto?.Notes))
+        {
+            // 告訴編譯器「此處我確定不是 null」
+            session.Notes = dto!.Notes; // 若你希望保留舊 notes 就改成追加
+        }
+
+        await _db.SaveChangesAsync();
+
+        // 3) 回傳最新明細（沿用你現有的投影邏輯）
+        return await GetById(id);
+    }
+
+
+    
+    [HttpPut("items")]
+    public async Task<ActionResult<TrainingSessionItemDto>> UpdateItem([FromBody] TrainingSessionItemUpdateDto dto)
+    {
+        if (dto is null || dto.SessionItemID == Guid.Empty)
+            return BadRequest("SessionItemID is required.");
+
+        // 找到使用者要更新的那個 SessionItem，而且連同它的 Video 物件一起載入，方便稍後回傳 VideoTitle
+        var item = await _db.TrainingSessionItems
+            .Include(i => i.Video) // 為了回傳 VideoTitle
+            .FirstOrDefaultAsync(i => i.SessionItemID == dto.SessionItemID);
+
+        if (item is null) return NotFound("Session item not found.");
+
+        // —— 欄位逐一「若有值才更新」——
+        if (!string.IsNullOrWhiteSpace(dto.Status))
+        {
+            // 防呆：只接受 Done/Skipped/Partial（對應你的 CHECK 約束）
+            var ok = dto.Status is "Done" or "Skipped" or "Partial";
+            if (!ok) return BadRequest("Invalid status.");
+            item.Status = dto.Status;
+        }
+        if (dto.ActualReps.HasValue) item.ActualReps = dto.ActualReps;
+        if (dto.ActualWeight.HasValue) item.ActualWeight = dto.ActualWeight;
+        if (dto.ActualDurationSec.HasValue) item.ActualDurationSec = dto.ActualDurationSec;
+        if (dto.ActualRestSec.HasValue) item.ActualRestSec = dto.ActualRestSec;
+        if (dto.RoundsDone.HasValue) item.RoundsDone = dto.RoundsDone;
+
+        // 只有當前端真的有傳 Note 參數時才更新；而且如果傳的是空字串，就把資料庫的 Note 清空（設 null）
+        // 跟 !string.IsNullOrWhiteSpace() 不一樣，因為它允許「空字串」進來
+        // 如果 dto.Note 是 null、空字串或全空白 → 存回資料庫就改成 null。否則 → 存使用者輸入的內容
+        if (dto.Note is not null) item.Note = string.IsNullOrWhiteSpace(dto.Note) ? null : dto.Note;
+
+        await _db.SaveChangesAsync();
+
+        // 回傳更新後的單筆 DTO（輕量）
+        var result = new TrainingSessionItemDto
+        {
+            SessionItemID = item.SessionItemID,
+            SetItemID = item.SetItemID,
+            VideoID = item.VideoID,
+            OrderNo = item.OrderNo,
+            Status = item.Status,
+            ActualReps = item.ActualReps,
+            ActualWeight = item.ActualWeight,
+            ActualDurationSec = item.ActualDurationSec,
+            ActualRestSec = item.ActualRestSec,
+            RoundsDone = item.RoundsDone,
+            Note = item.Note,
+            VideoTitle = item.Video.Title
+        };
+
+        return Ok(result);
+    }
 }

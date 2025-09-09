@@ -8,6 +8,9 @@ namespace Meow.Shared.Dtos.TrainingSessions
         [Required]
         public Guid SessionItemID { get; set; }
 
+        [Required]
+        public Guid SessionID { get; set; }
+
         public string? Status { get; set; }          // Done/Skipped/Partial
         public int? ActualReps { get; set; }
         public decimal? ActualWeight { get; set; }

@@ -153,5 +153,31 @@ namespace Meow.Web.Services
             var result = await resp.Content.ReadFromJsonAsync<TrainingSessionDetailDto>();
             return result!;
         }
+
+        // 取得單一訓練紀錄的詳細資料
+        public async Task<TrainingSessionDetailDto?> GetTrainingSessionAsync(Guid sessionId)
+        {
+            var resp = await _http.GetAsync($"api/TrainingSessions/{sessionId}");
+            if (resp.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
+            resp.EnsureSuccessStatusCode();
+            return (await resp.Content.ReadFromJsonAsync<TrainingSessionDetailDto>())!;
+        }
+
+
+        public async Task<TrainingSessionDetailDto> CompleteTrainingSessionAsync(Guid sessionId, TrainingSessionCompleteDto dto)
+        {
+            var resp = await _http.PutAsJsonAsync($"api/TrainingSessions/{sessionId}/complete", dto);
+            resp.EnsureSuccessStatusCode();
+            return (await resp.Content.ReadFromJsonAsync<TrainingSessionDetailDto>())!;
+        }
+
+
+        public async Task<TrainingSessionItemDto> UpdateTrainingSessionItemAsync(TrainingSessionItemUpdateDto dto)
+        {
+            var resp = await _http.PutAsJsonAsync("api/TrainingSessions/items", dto);
+            resp.EnsureSuccessStatusCode();
+            return (await resp.Content.ReadFromJsonAsync<TrainingSessionItemDto>())!;
+        }
+
     }
 }
