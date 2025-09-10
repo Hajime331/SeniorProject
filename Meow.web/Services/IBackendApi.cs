@@ -1,4 +1,5 @@
 ﻿using Meow.Shared.Dtos.Accounts;
+using Meow.Shared.Dtos.Analytics;
 using Meow.Shared.Dtos.Common;
 using Meow.Shared.Dtos.TrainingSessions;
 using Meow.Web.Models;
@@ -27,7 +28,7 @@ namespace Meow.Web.Services
 
         // 供「後台 Dashboard（效率版）」使用
         // 會員總數
-        Task<int> GetMemberCountAsync();
+        Task<int> GetMembersCountAsync();
 
         // 近期會員（依建立時間排序，預設取 5 筆）
         Task<List<MemberDto>> GetRecentMembersAsync(int take = 5);
@@ -69,5 +70,11 @@ namespace Meow.Web.Services
 
 
         Task<TrainingSessionItemDto> UpdateTrainingSessionItemAsync(TrainingSessionItemUpdateDto dto);
+
+
+        Task<AdminWeeklySummaryDto> GetAdminWeeklySummaryAsync(DateTime? startLocalDate, int take = 5);
+
+
+        Task<MemberWeeklySummaryDto> GetMemberWeeklySummaryAsync(Guid memberId, DateTime? startLocalDate = null);
     }
 }

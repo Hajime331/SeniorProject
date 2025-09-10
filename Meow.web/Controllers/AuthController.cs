@@ -54,7 +54,16 @@ namespace Meow.Web.Controllers
 
                 // 登入成功 → 回 ReturnUrl 或首頁
                 if (!string.IsNullOrWhiteSpace(vm.ReturnUrl) && Url.IsLocalUrl(vm.ReturnUrl))
-                    return Redirect(vm.ReturnUrl);
+                {
+                    // 一般會員切掉 Admin 區的回跳，改導到前台首頁或我的儀表板
+                    if (!me.IsAdmin && vm.ReturnUrl.StartsWith("/Admin", StringComparison.OrdinalIgnoreCase))
+                    {
+                        return RedirectToAction("MyWeekly", "Dashboard", new { area = "" });
+                    }
+                    return me.IsAdmin
+                        ? RedirectToAction("Index", "Dashboard", new { area = "Admin" })
+                        : RedirectToAction("MyWeekly", "Dashboard", new { area = "" });
+                }
 
                 TempData["Success"] = $"歡迎回來，{me.Nickname}";
                 return RedirectToAction("Index", "Home");

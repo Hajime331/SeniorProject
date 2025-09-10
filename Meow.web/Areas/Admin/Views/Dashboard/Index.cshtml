@@ -1,14 +1,27 @@
-﻿@model Meow.Web.Areas.Admin.Models.DashboardVm
+﻿@using Meow.Web.Areas.Admin.ViewModels
+@using System.Globalization
+@model DashboardVm
+
 @{
     ViewData["Title"] = "Dashboard";
+
+    // 時區轉換（台北）
+    TimeZoneInfo tz = null!;
+    try { tz = TimeZoneInfo.FindSystemTimeZoneById("Taipei Standard Time"); }
+    catch { tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Taipei"); }
+
+    string F(DateTime utc) => TimeZoneInfo.ConvertTimeFromUtc(utc, tz)
+        .ToString("yyyy/MM/dd HH:mm", CultureInfo.InvariantCulture);
+
+    var w = Model.Weekly ?? new Meow.Shared.Dtos.Analytics.AdminWeeklySummaryDto();
 }
 
-@*當 API 失敗時，TempData["Error"] 會在這裡顯示*@
 <partial name="~/Views/Shared/_AlertPartial.cshtml" />
 
 <h1 class="h3 mb-4">管理後台 Dashboard</h1>
 
 <div class="row g-3">
+    <!-- 會員總數 -->
     <div class="col-md-4">
         <div class="card shadow-sm">
             <div class="card-body">
@@ -18,15 +31,17 @@
         </div>
     </div>
 
+    <!-- 最新註冊 -->
     <div class="col-md-8">
         <div class="card shadow-sm">
             <div class="card-body">
                 <div class="d-flex justify-content-between align-items-center mb-2">
-                    <h5 class="mb-0">最新註冊（5）</h5>
+                    <h5 class="mb-0">最新註冊（@Model.RecentMembers.Count）</h5>
                     <a class="btn btn-sm btn-outline-secondary" asp-area="" asp-controller="Members" asp-action="Index">
                         前往會員清單
                     </a>
                 </div>
+
                 @if (Model.RecentMembers.Any())
                 {
                     <div class="table-responsive">
@@ -53,6 +68,7 @@
                                             }
                                             else
                                             {
+
                                                 <span class="badge bg-secondary">Member</span>
                                             }
                                         </td>
@@ -66,6 +82,86 @@
                 {
                     <div class="text-muted">尚無資料</div>
                 }
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 本週訓練統計（獨立一張卡） -->
+<div class="row g-3 mt-1">
+    <div class="col-12">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <h5 class="mb-1">本週訓練統計</h5>
+                        <div class="small text-muted">
+                            範圍：@((w.WeekStartUtc == default) ? "-" : F(w.WeekStartUtc)) ～ @((w.WeekEndUtc == default) ? "-" : F(w.WeekEndUtc))
+                        </div>
+                    </div>
+                    <form method="get" class="d-flex gap-2">
+                        <input class="form-control form-control-sm" type="date" name="week"
+                               value="@(w.WeekStartUtc == default ? "" : TimeZoneInfo.ConvertTimeFromUtc(w.WeekStartUtc, tz).ToString("yyyy-MM-dd"))" />
+                        <button class="btn btn-sm btn-outline-primary" type="submit">切換週</button>
+                    </form>
+                </div>
+
+                <div class="row g-3 mt-1">
+                    <div class="col-md-4">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-body">
+                                <div class="text-muted small">完成場次</div>
+                                <div class="fs-3 fw-bold">@w.TotalSessions</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-body">
+                                <div class="text-muted small">總分鐘數</div>
+                                <div class="fs-3 fw-bold">@w.TotalMinutes</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card shadow-sm h-100">
+                            <div class="card-body">
+                                <div class="text-muted small">活躍會員數</div>
+                                <div class="fs-3 fw-bold">@w.ActiveMembers</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="table-responsive mt-3">
+                    <table class="table table-sm align-middle">
+                        <thead>
+                            <tr>
+                                <th>暱稱</th>
+                                <th class="text-end">分鐘</th>
+                                <th class="text-end">場次</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (w.TopActive is null || w.TopActive.Count == 0)
+                            {
+                                <tr><td colspan="3" class="text-muted">本週尚無完成紀錄</td></tr>
+                            }
+                            else
+                            {
+                                foreach (var m in w.TopActive)
+                                {
+                                    <tr>
+                                        <td>@m.Nickname</td>
+                                        <td class="text-end">@m.Minutes</td>
+                                        <td class="text-end">@m.Sessions</td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+
             </div>
         </div>
     </div>

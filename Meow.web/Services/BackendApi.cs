@@ -1,9 +1,10 @@
 ﻿using Meow.Shared.Dtos.Accounts;
-using Microsoft.AspNetCore.WebUtilities;
-using System.Globalization;
+using Meow.Shared.Dtos.Analytics;
 using Meow.Shared.Dtos.Common;
 using Meow.Shared.Dtos.TrainingSessions;
 using Meow.Web.Models;
+using Microsoft.AspNetCore.WebUtilities;
+using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
 using static System.Net.WebRequestMethods;
@@ -75,7 +76,7 @@ namespace Meow.Web.Services
 
         // 供「後台 Dashboard（效率版）」使用
         // 非同步地取得會員總數
-        public async Task<int> GetMemberCountAsync()
+        public async Task<int> GetMembersCountAsync()
             => await _http.GetFromJsonAsync<int>("api/Members/count");
 
         // 非同步地取得最新的 N 筆會員清單
@@ -179,5 +180,30 @@ namespace Meow.Web.Services
             return (await resp.Content.ReadFromJsonAsync<TrainingSessionItemDto>())!;
         }
 
+
+        public async Task<AdminWeeklySummaryDto> GetAdminWeeklySummaryAsync(DateTime? startLocalDate, int take = 5)
+        {
+            var qs = new Dictionary<string, string?>
+            {
+                ["take"] = Math.Clamp(take, 1, 20).ToString(),
+                // 傳「台北當地日期」字串（控制週首）
+                ["start"] = startLocalDate?.ToString("yyyy-MM-dd")
+            };
+            var url = QueryHelpers.AddQueryString("api/Analytics/admin/weekly", qs);
+            var resp = await _http.GetFromJsonAsync<AdminWeeklySummaryDto>(url);
+            return resp!;
+        }
+
+
+        public async Task<MemberWeeklySummaryDto> GetMemberWeeklySummaryAsync(Guid memberId, DateTime? startLocalDate = null)
+        {
+            var qs = new Dictionary<string, string?>
+            {
+                ["memberId"] = memberId.ToString(),
+                ["start"] = startLocalDate?.ToString("yyyy-MM-dd")
+            };
+            var url = QueryHelpers.AddQueryString("api/Analytics/weekly", qs);
+            return (await _http.GetFromJsonAsync<MemberWeeklySummaryDto>(url))!;
+        }
     }
 }
