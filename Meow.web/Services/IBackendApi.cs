@@ -19,7 +19,6 @@ namespace Meow.Web.Services
         Task<IEnumerable<TagDto>> GetTagsAsync();
 
 
-
         // 供「前台 Members 清單頁」使用
         // 抓全部會員清單
         Task<IEnumerable<MemberDto>> GetMembersAsync();
@@ -74,7 +73,10 @@ namespace Meow.Web.Services
 
         Task<AdminWeeklySummaryDto> GetAdminWeeklySummaryAsync(DateTime? startLocalDate, int take = 5);
 
-
+        
         Task<MemberWeeklySummaryDto> GetMemberWeeklySummaryAsync(Guid memberId, DateTime? startLocalDate = null);
+
+
+        Task<List<TrainingSessionListItemDto>> GetRecentSessionsAsync(Guid memberId, int take = 3);
     }
 }

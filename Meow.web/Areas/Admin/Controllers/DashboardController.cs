@@ -25,7 +25,7 @@ namespace Meow.Web.Areas.Admin.Controllers
 
         // 單一入口（避免重複的 Index 造成 AmbiguousMatchException）
         // /Admin/Dashboard?week=2025-09-08&recentTake=5&topTake=5
-        [HttpGet("")]
+        [HttpGet]
         public async Task<IActionResult> Index(DateTime? week, int recentTake = 5, int topTake = 5)
         {
             var countTask = _api.GetMembersCountAsync();                 // /api/Members/count

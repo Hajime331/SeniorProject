@@ -205,5 +205,22 @@ namespace Meow.Web.Services
             var url = QueryHelpers.AddQueryString("api/Analytics/weekly", qs);
             return (await _http.GetFromJsonAsync<MemberWeeklySummaryDto>(url))!;
         }
+
+
+        public async Task<List<TrainingSessionListItemDto>> GetRecentSessionsAsync(Guid memberId, int take = 3)
+        {
+            var qs = new Dictionary<string, string?>
+            {
+                ["memberId"] = memberId.ToString(),
+                ["page"] = "1",
+                ["pageSize"] = Math.Clamp(take, 1, 10).ToString()
+            };
+            var url = QueryHelpers.AddQueryString("api/TrainingSessions", qs);
+            var resp = await _http.GetFromJsonAsync<PagedResult<TrainingSessionListItemDto>>(url);
+            return resp?.Items ?? new();
+        }
+
+        // 你的 PagedResult 若不在 Shared，就在此檔案補一個相容的小型 record
+        public record PagedResult<T>(List<T> Items, int TotalCount, int Page, int PageSize);
     }
 }

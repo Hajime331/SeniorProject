@@ -2,16 +2,20 @@
 <html lang="zh-Hant">
 <head>
     <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>後台｜@ViewData["Title"]</title>
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
 </head>
 <body class="bg-light">
     <nav class="navbar navbar-expand navbar-dark bg-dark">
         <div class="container-fluid">
+            <!-- 連到後台首頁 -->
             <a class="navbar-brand" asp-area="Admin" asp-controller="Dashboard" asp-action="Index">Admin</a>
+
             <div class="navbar-nav">
-                <a class="nav-link" asp-area="Admin" asp-controller="Dashboard" asp-action="Index">儀表板</a>
+                <!-- 後台儀表板 -->
+                <a class="nav-link" asp-area="" asp-controller="Dashboard" asp-action="Index">儀表板</a>
+                <!-- 回前台（首頁） -->
                 <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">回前台</a>
             </div>
             <div class="navbar-nav ms-auto">
