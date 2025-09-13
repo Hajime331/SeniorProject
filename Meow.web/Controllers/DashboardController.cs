@@ -49,6 +49,7 @@ namespace Meow.Web.Controllers
                 Weekly = weeklyTask.Result,
                 Recent = recentTask.Result
             };
+
             return View(vm);
         }
 

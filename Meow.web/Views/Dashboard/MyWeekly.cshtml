@@ -55,9 +55,14 @@
         <div class="d-flex justify-content-between align-items-center">
             <h5 class="mb-0">最近 7 天分鐘數</h5>
         </div>
-        <canvas id="miniChart" height="160"></canvas>
+
+        <!-- 固定高度的容器，交給 Chart 依容器高度 responsive -->
+        <div id="miniChartWrap" style="position:relative; height:220px;">
+            <canvas id="miniChart"></canvas>
+        </div>
     </div>
 </div>
+
 
 <div class="card shadow-sm mt-3">
     <div class="card-body">
@@ -92,36 +97,110 @@
 </div>
 
 @section Scripts {
-    <!-- Chart.js（CDN） -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script>
-        (function(){
-          // 以週起日為基準，補齊最近 7 天的 x 軸（UTC → 字串）
-          const daily = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(d.Daily));
-          const start = new Date('@d.WeekStartUtc.ToString("yyyy-MM-ddTHH:mm:ssZ")'); // UTC
-          const labels = [];
-          const values = [];
+        (function () {
+          // ---- 後端序列化的每日資料（各種可能欄位名皆容錯）----
+          const raw = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(d.Daily));
 
-          for (let i = 0; i < 7; i++) {
-            const cur = new Date(start); cur.setUTCDate(cur.getUTCDate()+i);
-            const key = cur.toISOString().slice(0,10); // yyyy-MM-dd
-            labels.push(key.slice(5)); // MM-dd
-            const found = daily.find(x => x.date === key);
-            values.push(found ? (found.minutes || 0) : 0);
+          // 將資料歸一化成：{ "yyyy-MM-dd" (本地日): minutes:int }
+          const byDate = Object.create(null);
+
+          // 小工具：把某個 Date 轉成「本地 yyyy-MM-dd」字串
+          const toLocalKey = (date) => {
+            const y = date.getFullYear();
+            const m = String(date.getMonth() + 1).padStart(2, "0");
+            const d = String(date.getDate()).padStart(2, "0");
+            return `${y}-${m}-${d}`;
+          };
+
+          // 取數值（優先分鐘，否則把秒數換分鐘）
+          const toMinutes = (item) => {
+            let m = item.minutes ?? item.totalMinutes ?? item.mins ?? null;
+            if (m == null) {
+              const s = item.seconds ?? item.totalSeconds ?? item.durationSeconds ?? 0;
+              m = Math.round(Number(s) / 60);
+            }
+            m = Number(m);
+            return Number.isFinite(m) ? m : 0;
+          };
+
+          // 取日期 key（優先用 item.date*，否則用 StartedAt/EndedAt 推算）
+          const getKey = (item) => {
+            let ds =
+              item.date ?? item.dateLocal ?? item.dateUtc ?? item.day ?? item.Day ?? null;
+            if (typeof ds === "string" && ds.length >= 10) return ds.slice(0, 10);
+
+            // 後備：如果有時間戳，抓 StartedAt（或 EndedAt）算出本地日
+            const ts = item.startedAt ?? item.StartedAt ?? item.endedAt ?? item.EndedAt ?? null;
+            if (ts) {
+              const dt = new Date(ts); // 可吃 2025-09-12T00:00:00Z / ISO
+              return toLocalKey(dt);
+            }
+            return null;
+          };
+
+          for (const it of raw || []) {
+            const key = getKey(it);
+            const mins = toMinutes(it);
+            if (key) byDate[key] = (byDate[key] ?? 0) + mins;
           }
 
-          const ctx = document.getElementById('miniChart');
-          new Chart(ctx, {
-            type: 'bar',
+          // ---- 依「週起日（UTC）」建立 7 天軸，key 用本地日 ----
+          const startUtc = new Date('@d.WeekStartUtc.ToString("yyyy-MM-ddTHH:mm:ssZ")');
+          const labels = [];
+          const values = [];
+          for (let i = 0; i < 7; i++) {
+            const curLocal = new Date(startUtc.getTime() + i * 86400000);
+            const key = toLocalKey(curLocal); // 本地 yyyy-MM-dd
+            labels.push(key.slice(5));        // 顯示 MM-dd
+            values.push(byDate[key] ?? 0);
+          }
+
+          // ---- 建圖（bar）----
+          const ctx = document.getElementById("miniChart").getContext("2d");
+          if (window._miniChart) window._miniChart.destroy();
+
+          window._miniChart = new Chart(ctx, {
+            type: "bar",
             data: {
               labels,
-              datasets: [{ label: '分鐘', data: values }]
+              datasets: [{
+                label: "訓練分鐘數",
+                data: values.map(v => Number(v) || 0),
+                backgroundColor: "rgba(54, 162, 235, 0.6)",
+                borderRadius: 8,
+                // 讓長條更明顯
+                barThickness: 26,
+                maxBarThickness: 32,
+                categoryPercentage: 0.7,
+                barPercentage: 0.9
+              }]
             },
             options: {
-              plugins: { legend: { display: false } },
-              scales: { y: { beginAtZero: true } }
+              responsive: true,
+              maintainAspectRatio: false,
+              scales: {
+                y: {
+                  beginAtZero: true,
+                  suggestedMax: Math.max(60, Math.ceil(Math.max(...values, 0) / 10) * 10),
+                  ticks: {
+                    callback: (v) => Number.isInteger(Number(v)) ? v + " 分鐘" : ""
+                  },
+                  title: { display: true, text: "分鐘" }
+                },
+                x: { title: { display: true, text: "日期" } }
+              },
+              plugins: {
+                tooltip: {
+                  callbacks: { label: (ctx) => ctx.parsed.y + " 分鐘" }
+                },
+                legend: { display: false }
+              }
             }
           });
         })();
     </script>
 }
+
+

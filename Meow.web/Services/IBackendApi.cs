@@ -33,7 +33,6 @@ namespace Meow.Web.Services
         Task<List<MemberDto>> GetRecentMembersAsync(int take = 5);
 
 
-
         // 建立會員
         Task<MemberDto?> CreateMemberAsync(MemberCreateRequest req);
 
@@ -63,7 +62,7 @@ namespace Meow.Web.Services
 
         // 取得單一訓練紀錄的詳細資料
         Task<TrainingSessionDetailDto> GetTrainingSessionAsync(Guid sessionId);
-        
+
         // 完成訓練紀錄（包含訓練項目）
         Task<TrainingSessionDetailDto> CompleteTrainingSessionAsync(Guid sessionId, TrainingSessionCompleteDto dto);
 
@@ -73,10 +72,16 @@ namespace Meow.Web.Services
 
         Task<AdminWeeklySummaryDto> GetAdminWeeklySummaryAsync(DateTime? startLocalDate, int take = 5);
 
-        
+
         Task<MemberWeeklySummaryDto> GetMemberWeeklySummaryAsync(Guid memberId, DateTime? startLocalDate = null);
 
 
         Task<List<TrainingSessionListItemDto>> GetRecentSessionsAsync(Guid memberId, int take = 3);
+
+
+        // 取得熱門訓練組合排行
+        Task<IReadOnlyList<PopularTrainingSetDto>> GetPopularTrainingSetsAsync(
+        DateTime? start = null, DateTime? end = null, int take = 10);
+
     }
 }

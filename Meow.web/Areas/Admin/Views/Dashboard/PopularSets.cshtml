@@ -1,0 +1,219 @@
+﻿@model Meow.Web.Areas.Admin.Controllers.DashboardController.PopularSetsVm
+@using System.Globalization
+
+@{
+    ViewData["Title"] = "熱門訓練組合排行";
+    string F(DateTime utc) => utc.ToString("yyyy/MM/dd HH:mm", CultureInfo.InvariantCulture) + " UTC";
+}
+
+<h2 class="mb-3">熱門訓練組合排行</h2>
+<div class="text-muted small mb-3">統計區間：@F(Model.RangeStartUtc) ～ @F(Model.RangeEndUtc)</div>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <input type="datetime-local" class="form-control" name="start" value="@Model.RangeStartUtc.ToString("yyyy-MM-ddTHH:mm")" />
+    </div>
+    <div class="col-auto">
+        <input type="datetime-local" class="form-control" name="end" value="@Model.RangeEndUtc.ToString("yyyy-MM-ddTHH:mm")" />
+    </div>
+    <div class="col-auto">
+        <input type="number" class="form-control" name="take" value="10" min="1" max="50" />
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary">查詢</button>
+        <a class="btn btn-outline-secondary" asp-action="PopularSets">最近 28 天</a>
+    </div>
+</form>
+
+@if (Model.Items.Count == 0)
+{
+    <div class="alert alert-info">區間內沒有完成的訓練紀錄。</div>
+}
+else
+{
+    <div class="card shadow-sm">
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table align-middle" id="popularTable">
+                    <thead>
+                        <tr>
+                            <th style="width:72px;">#</th>
+                            <th data-key="SetName" class="sortable">訓練組合 <span class="sort-indicator"></span></th>
+                            <th data-key="CompletedCount" class="text-end sortable">完成次數 <span class="sort-indicator"></span></th>
+                            <th data-key="TotalMinutes" class="text-end sortable">總分鐘 <span class="sort-indicator"></span></th>
+                            <th data-key="AvgMinutes" class="text-end sortable">平均/次 <span class="sort-indicator"></span></th>
+                            <th data-key="LastCompletedAtUtc" class="sortable">最後完成(UTC) <span class="sort-indicator"></span></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @{
+                            var rank = 1;
+                            foreach (var x in Model.Items)
+                            {
+                                <tr>
+                                    <td>@rank</td>
+                                    <td>@x.SetName</td>
+                                    <td class="text-end">@x.CompletedCount</td>
+                                    <td class="text-end">@x.TotalMinutes</td>
+                                    <td class="text-end">@Math.Round(x.AvgMinutes)</td>
+                                    <td>@(x.LastCompletedAtUtc?.ToString("yyyy/MM/dd HH:mm") ?? "-")</td>
+                                </tr>
+                                rank++;
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    th.sortable {
+        cursor: pointer;
+        user-select: none;
+    }
+
+        th.sortable .sort-indicator {
+            opacity: .6;
+            font-size: .9em;
+        }
+
+        th.sortable.active .sort-indicator::after {
+            content: attr(data-arrow);
+        }
+</style>
+
+@* 圖表卡片（水平長條） 
+<div class="card shadow-sm mt-3">
+    <div class="card-body">
+        <h5 class="mb-2">Top @Model.Items.Count 熱門組合</h5>
+        <div style="position:relative; height:@(Math.Max(260, 44 * Model.Items.Count))px;">
+            <canvas id="popularSetsChart"></canvas>
+        </div>
+    </div>
+</div>*@
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script>
+        (function(){
+          // 從 Model 取資料：預設就是 PascalCase 欄位名（SetName/CompletedCount/...）
+          const itemsOrig = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model.Items));
+          const table = document.getElementById('popularTable');
+          const tbody = table.querySelector('tbody');
+
+          // 初始化水平長條圖（若已有就複用）
+          const chartCtx = document.getElementById('popularSetsChart')?.getContext?.('2d');
+          function ensureChart(){
+            if (!chartCtx) return null;
+            if (window._popularChart) return window._popularChart;
+            window._popularChart = new Chart(chartCtx, {
+              type:'bar',
+              data:{ labels: [], datasets:[{ label:'完成次數', data:[], borderRadius:8 }] },
+              options:{
+                indexAxis:'y', responsive:true, maintainAspectRatio:false,
+                scales:{
+                  x:{ beginAtZero:true, title:{display:true,text:'次數'} },
+                  y:{ ticks:{ autoSkip:false } }
+                },
+                plugins:{ legend:{ display:false }, tooltip:{ callbacks:{ label:(ctx)=>` ${ctx.parsed.x} 次` } } }
+              }
+            });
+            return window._popularChart;
+          }
+
+          // 排序狀態
+          let sortKey = 'CompletedCount';
+          let sortDir = 'desc'; // 'asc' | 'desc'
+
+          // 通用比較：數字 / 日期 / 文字
+          function cmp(a,b,key){
+            const va = a[key], vb = b[key];
+            if (key === 'LastCompletedAtUtc'){ // ISO 日期字串或 null
+              const da = va ? Date.parse(va) : -Infinity;
+              const db = vb ? Date.parse(vb) : -Infinity;
+              return da - db;
+            }
+            if (['CompletedCount','TotalMinutes','AvgMinutes'].includes(key)){
+              return Number(va) - Number(vb);
+            }
+            return String(va ?? '').localeCompare(String(vb ?? ''), 'zh-Hant');
+          }
+
+          function sortItems(list){
+            const arr = [...list];
+            arr.sort((a,b)=>{
+              const c = cmp(a,b,sortKey);
+              return sortDir === 'asc' ? c : -c;
+            });
+            return arr;
+          }
+
+          function escapeHtml(s){
+            return String(s ?? '')
+              .replaceAll('&','&amp;').replaceAll('<','&lt;')
+              .replaceAll('>','&gt;').replaceAll('"','&quot;').replaceAll("'",'&#39;');
+          }
+
+          function renderTable(list){
+            const rows = list.map((x,i)=>{
+              const avg = Math.round(x.AvgMinutes ?? (x.CompletedCount ? x.TotalMinutes / x.CompletedCount : 0));
+              return `<tr>
+                <td>${i+1}</td>
+                <td>${escapeHtml(x.SetName)}</td>
+                <td class="text-end">${x.CompletedCount}</td>
+                <td class="text-end">${x.TotalMinutes}</td>
+                <td class="text-end">${avg}</td>
+                <td>${x.LastCompletedAtUtc ? x.LastCompletedAtUtc.replace('T',' ').slice(0,16) : '-'}</td>
+              </tr>`;
+            }).join('');
+            tbody.innerHTML = rows;
+          }
+
+          function syncChart(list){
+            const chart = ensureChart();
+            if (!chart) return;
+            chart.data.labels = list.map(x => x.SetName);
+            chart.data.datasets[0].data = list.map(x => x.CompletedCount);
+            chart.update();
+          }
+
+          // 初次渲染
+          const first = sortItems(itemsOrig);
+          renderTable(first);
+          syncChart(first);
+          updateHeaderIndicators();
+
+          // 表頭點擊排序
+          table.querySelectorAll('th.sortable').forEach(th=>{
+            th.addEventListener('click', ()=>{
+              const key = th.getAttribute('data-key');
+              if (sortKey === key){
+                sortDir = (sortDir === 'asc') ? 'desc' : 'asc';
+              } else {
+                sortKey = key;
+                sortDir = (key==='SetName') ? 'asc' : 'desc';
+              }
+              const sorted = sortItems(itemsOrig);
+              renderTable(sorted);
+              syncChart(sorted);
+              updateHeaderIndicators();
+            });
+          });
+
+          // 顯示當前排序箭頭
+          function updateHeaderIndicators(){
+            table.querySelectorAll('th.sortable').forEach(th=>{
+              th.classList.remove('active');
+              th.querySelector('.sort-indicator')?.setAttribute('data-arrow','');
+            });
+            const th = table.querySelector(`th.sortable[data-key="${sortKey}"]`);
+            if (th){
+              th.classList.add('active');
+              th.querySelector('.sort-indicator')?.setAttribute('data-arrow', sortDir==='asc'?'▲':'▼');
+            }
+          }
+        })();
+    </script>
+}

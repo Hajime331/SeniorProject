@@ -1,5 +1,6 @@
 ﻿using Meow.Api.Data;
 using Meow.Shared.Dtos.Analytics;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -140,4 +141,39 @@ public class AnalyticsController : ControllerBase
             Daily = daily
         });
     }
+
+
+    [HttpGet("admin/popular-sets")]
+    // [Authorize(Policy = "AdminOnly")]
+    public async Task<ActionResult<IEnumerable<PopularTrainingSetDto>>> GetPopularSets(
+    [FromQuery] DateTime? start,
+    [FromQuery] DateTime? end,
+    [FromQuery] int take = 10)
+    {
+        var utcEnd = end?.ToUniversalTime() ?? DateTime.UtcNow;
+        var utcStart = start?.ToUniversalTime() ?? utcEnd.AddDays(-28);
+
+        // 先把 Session 和 TrainingSet join 起來，再 group
+        var query =
+            from s in _db.TrainingSessions.AsNoTracking()
+            join set in _db.TrainingSets.AsNoTracking()
+                on s.SetID equals set.SetID
+            where s.EndedAt != null
+               && s.EndedAt >= utcStart
+               && s.EndedAt <= utcEnd
+            group new { s, set } by new { s.SetID, set.Name } into g
+            orderby g.Count() descending
+            select new PopularTrainingSetDto
+            {
+                SetID = g.Key.SetID,
+                SetName = g.Key.Name,
+                CompletedCount = g.Count(),
+                TotalMinutes = g.Sum(x => EF.Functions.DateDiffMinute(x.s.StartedAt, x.s.EndedAt) ?? 0),
+                LastCompletedAtUtc = g.Max(x => x.s.EndedAt)
+            };
+
+        var result = await query.Take(Math.Max(1, take)).ToListAsync();
+        return Ok(result);
+    }
+
 }

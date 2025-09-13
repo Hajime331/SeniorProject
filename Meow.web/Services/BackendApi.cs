@@ -20,7 +20,6 @@ namespace Meow.Web.Services
         {
             _http = http;
             _config = config;
-            _http.BaseAddress = new Uri(_config["BackendApi:BaseUrl"]!); // e.g. https://localhost:7001/
         }
 
         public async Task<IEnumerable<WeatherDto>> GetWeatherAsync()
@@ -222,5 +221,31 @@ namespace Meow.Web.Services
 
         // 你的 PagedResult 若不在 Shared，就在此檔案補一個相容的小型 record
         public record PagedResult<T>(List<T> Items, int TotalCount, int Page, int PageSize);
+
+
+        public async Task<IReadOnlyList<PopularTrainingSetDto>> GetPopularTrainingSetsAsync(
+    DateTime? start = null, DateTime? end = null, int take = 10)
+        {
+            var qs = new Dictionary<string, string?>
+            {
+                ["take"] = Math.Clamp(take, 1, 50).ToString(),
+                ["start"] = start?.ToString("o"),
+                ["end"] = end?.ToString("o")
+            };
+            var url = QueryHelpers.AddQueryString("api/Analytics/admin/popular-sets", qs);
+
+            // 先拿原始回應，讀文字內容來看錯誤
+            using var resp = await _http.GetAsync(url);
+            var body = await resp.Content.ReadAsStringAsync();
+
+            if (!resp.IsSuccessStatusCode)
+                throw new ApplicationException($"popular-sets failed: {(int)resp.StatusCode} {resp.StatusCode}\n{body}");
+
+            // 成功時再做反序列化
+            return System.Text.Json.JsonSerializer.Deserialize<IReadOnlyList<PopularTrainingSetDto>>(body,
+                       new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
+                   ?? Array.Empty<PopularTrainingSetDto>();
+        }
+
     }
 }

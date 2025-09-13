@@ -53,5 +53,34 @@ namespace Meow.Web.Areas.Admin.Controllers
             return View(vm);
         }
 
+
+        public record PopularSetsVm(
+        DateTime RangeStartUtc,
+        DateTime RangeEndUtc,
+        IReadOnlyList<PopularTrainingSetDto> Items);
+
+
+        [HttpGet]
+        public async Task<IActionResult> PopularSets(DateTime? start, DateTime? end, int take = 10)
+        {
+            var utcEnd = end?.ToUniversalTime() ?? DateTime.UtcNow;
+            var utcStart = start?.ToUniversalTime() ?? utcEnd.AddDays(-28);
+
+            try
+            {
+                var items = await _api.GetPopularTrainingSetsAsync(start, end, take);
+                TempData.Remove("Error");   // ← 清除舊的錯誤訊息
+                return View(new PopularSetsVm(utcStart, utcEnd, items ?? []));
+
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Load PopularSets failed");
+                TempData["Error"] = ex.Message; // 內含 API 回傳的 ProblemDetails
+                return View(new PopularSetsVm(utcStart, utcEnd, Array.Empty<PopularTrainingSetDto>()));
+            }
+        }
+
+
     }
 }

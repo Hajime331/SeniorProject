@@ -15,8 +15,13 @@
             <div class="navbar-nav">
                 <!-- 後台儀表板 -->
                 <a class="nav-link" asp-area="" asp-controller="Dashboard" asp-action="Index">儀表板</a>
+
+                <!-- 熱門訓練組合排行 -->
+                <a class="nav-link" asp-area="Admin" asp-controller="Dashboard" asp-action="PopularSets">熱門訓練組合排行</a>
+
                 <!-- 回前台（首頁） -->
                 <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">回前台</a>
+                
             </div>
             <div class="navbar-nav ms-auto">
                 <span class="navbar-text me-3">@User.Identity?.Name</span>
@@ -30,5 +35,6 @@
         @RenderBody()
     </main>
     <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

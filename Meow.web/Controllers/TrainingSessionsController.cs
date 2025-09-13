@@ -125,6 +125,45 @@ public class TrainingSessionsController : Controller
 
     [HttpPost]
     [ValidateAntiForgeryToken]
+    public async Task<IActionResult> CompleteAjax(Guid id, int? calories, int? points, string? note)
+    {
+        if (id == Guid.Empty) return BadRequest(new { ok = false, message = "id required" });
+
+        var dto = new TrainingSessionCompleteDto
+        {
+            EndedAt = DateTime.UtcNow,
+            CompletedFlag = true,
+            CaloriesBurned = calories,
+            PointsAwarded = points,
+            Notes = note
+        };
+
+        try
+        {
+            var updated = await _api.CompleteTrainingSessionAsync(id, dto);
+            // 回傳前端更新所需的最小欄位
+            var minutes = updated.EndedAt.HasValue
+                ? (int)Math.Max(0, (updated.EndedAt.Value - updated.StartedAt).TotalMinutes)
+                : 0;
+
+            return Json(new
+            {
+                ok = true,
+                sessionId = updated.SessionID,
+                completedFlag = updated.CompletedFlag,
+                endedAt = updated.EndedAt,                     // ISO 格式，前端自行轉字串
+                minutes
+            });
+        }
+        catch (Exception ex)
+        {
+            return BadRequest(new { ok = false, message = ex.Message });
+        }
+    }
+
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateItem(TrainingSessionItemUpdateDto dto)
     {
         if (dto.SessionItemID == Guid.Empty)
