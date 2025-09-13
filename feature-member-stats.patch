@@ -1,0 +1,281 @@
+*** a/Meow.Shared.Dtos/Analytics/MemberStatsDto.cs
+--- /dev/null
+***************
+*** 0 ****
+--- 1,54 ----
++ using System;
++ 
++ namespace Meow.Shared.Dtos.Analytics
++ {
++     /// <summary>
++     /// 聚合會員訓練統計（總場次、總分鐘、平均每次、連續週數等）
++     /// </summary>
++     public class MemberStatsDto
++     {
++         public Guid MemberID { get; set; }
++         public int TotalSessions { get; set; }
++         public int TotalMinutes { get; set; }
++         public double AvgMinutesPerSession { get; set; }
++         public int CurrentWeeklyStreak { get; set; }
++         public int BestWeeklyStreak { get; set; }
++         public DateTime? FirstSessionAt { get; set; }
++         public DateTime? LastSessionAt { get; set; }
++     }
++ }
+*** a/Meow.Api/Controllers/AnalyticsController.cs
+--- b/Meow.Api/Controllers/AnalyticsController.cs
+*************** public class AnalyticsController : ControllerBase
+*** 1,1 ****
+--- 1,226 ----
++ using System;
++ using System.Collections.Generic;
++ using System.Linq;
++ using System.Threading.Tasks;
++ using Meow.Shared.Dtos.Analytics;
++ using Microsoft.AspNetCore.Authorization;
++ using Microsoft.AspNetCore.Mvc;
++ using Microsoft.EntityFrameworkCore;
++ 
++ namespace Meow.Api.Controllers
++ {
++     [ApiController]
++     [Route("api/[controller]")]
++     public class AnalyticsController : ControllerBase
++     {
++         private readonly AppDbContext _db;
++ 
++         public AnalyticsController(AppDbContext db)
++         {
++             _db = db;
++         }
++ 
++         // ...（你現有的其他 action，例如 admin/weekly、admin/popular-sets）
++ 
++         // ============ 個人：整體統計資訊 ============
++         /// <summary>
++         /// 取得某會員的訓練統計（總場次、總分鐘、平均每次時長、最佳/目前連續週）
++         /// </summary>
++         [HttpGet("member/stats")]
++         public async Task<ActionResult<MemberStatsDto>> MemberStats([FromQuery] Guid memberId)
++         {
++             if (memberId == Guid.Empty) return BadRequest("memberId is required.");
++ 
++             var q = _db.TrainingSessions.AsNoTracking()
++                 .Where(s => s.MemberID == memberId && s.CompletedFlag && s.EndedAt != null);
++ 
++             var totalSessions = await q.CountAsync();
++             var totalMinutes  = await q.SumAsync(s => EF.Functions.DateDiffMinute(s.StartedAt, s.EndedAt!.Value));
++             var avg = totalSessions == 0 ? 0 : (double)totalMinutes / totalSessions;
++ 
++             var firstAt = await q.MinAsync(s => (DateTime?)s.StartedAt);
++             var lastAt  = await q.MaxAsync(s => (DateTime?)s.EndedAt);
++ 
++             // 以台北時區、週一為週首計算週連續
++             TimeZoneInfo tz;
++             try { tz = TimeZoneInfo.FindSystemTimeZoneById("Taipei Standard Time"); }
++             catch { tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Taipei"); }
++ 
++             DateTime ToWeekStartLocal(DateTime utc)
++             {
++                 var local = TimeZoneInfo.ConvertTimeFromUtc(utc, tz).Date;
++                 int delta = ((int)local.DayOfWeek + 6) % 7; // Monday=0
++                 return local.AddDays(-delta);
++             }
++ 
++             var weekStarts = await q
++                 .Select(s => ToWeekStartLocal(s.StartedAt))
++                 .Distinct()
++                 .OrderBy(d => d)
++                 .ToListAsync();
++ 
++             int best = 0, cur = 0; DateTime? prev = null;
++             foreach (var w in weekStarts)
++             {
++                 cur = (prev == null || (w - prev.Value).TotalDays == 7) ? cur + 1 : 1;
++                 best = Math.Max(best, cur);
++                 prev = w;
++             }
++ 
++             // 目前連續週（含本週或上一週起點）
++             int current = 0;
++             if (weekStarts.Count > 0)
++             {
++                 var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz).Date;
++                 int delta = ((int)todayLocal.DayOfWeek + 6) % 7;
++                 var thisWeekStart = todayLocal.AddDays(-delta);
++                 var lastWeekStart = thisWeekStart.AddDays(-7);
++ 
++                 // 從尾端往前數連續
++                 for (int i = weekStarts.Count - 1; i >= 0; i--)
++                 {
++                     var w = weekStarts[i];
++                     if (current == 0 && (w == thisWeekStart || w == lastWeekStart))
++                     {
++                         current = 1;
++                         var j = i - 1; var expect = w.AddDays(-7);
++                         while (j >= 0 && weekStarts[j] == expect) { current++; expect = expect.AddDays(-7); j--; }
++                         break;
++                     }
++                 }
++             }
++ 
++             return Ok(new MemberStatsDto
++             {
++                 MemberID = memberId,
++                 TotalSessions = totalSessions,
++                 TotalMinutes = totalMinutes,
++                 AvgMinutesPerSession = avg,
++                 CurrentWeeklyStreak = current,
++                 BestWeeklyStreak = best,
++                 FirstSessionAt = firstAt,
++                 LastSessionAt = lastAt
++             });
++         }
++     }
++ }
+*** a/Meow.Web/Services/IBackendApi.cs
+--- b/Meow.Web/Services/IBackendApi.cs
+*************** public interface IBackendApi
+*** 1,1 ****
+--- 1,24 ----
++ using System;
++ using System.Collections.Generic;
++ using System.Threading.Tasks;
++ using Meow.Shared.Dtos.Analytics;
++ using Meow.Shared.Dtos.Training;
++ 
++ namespace Meow.Web.Services
++ {
++     public interface IBackendApi
++     {
++         // 你原本已有的方法（略）
++         Task<MemberWeeklySummaryDto> GetMemberWeeklySummaryAsync(Guid memberId, DateTime? startLocalDate = null);
++         Task<List<TrainingSessionListItemDto>> GetRecentSessionsAsync(Guid memberId, int take = 3);
++         Task<AdminWeeklySummaryDto> GetAdminWeeklySummaryAsync(DateTime? startLocalDate, int take = 5);
++ 
++         /// <summary>
++         /// 取得會員整體統計（總場次、總分鐘、平均每次、連續週）
++         /// </summary>
++         Task<MemberStatsDto> GetMemberStatsAsync(Guid memberId);
++     }
++ }
+*** a/Meow.Web/Services/BackendApi.cs
+--- b/Meow.Web/Services/BackendApi.cs
+*************** public class BackendApi : IBackendApi
+*** 1,1 ****
+--- 1,52 ----
++ using System;
++ using System.Collections.Generic;
++ using System.Net.Http.Json;
++ using System.Threading.Tasks;
++ using Meow.Shared.Dtos.Analytics;
++ using Meow.Shared.Dtos.Training;
++ 
++ namespace Meow.Web.Services
++ {
++     public class BackendApi : IBackendApi
++     {
++         private readonly HttpClient _http;
++ 
++         public BackendApi(HttpClient http)
++         {
++             _http = http;
++         }
++ 
++         // 你原本已有的方法（略）
++         public async Task<MemberWeeklySummaryDto> GetMemberWeeklySummaryAsync(Guid memberId, DateTime? startLocalDate = null)
++         {
++             var url = $"api/Analytics/weekly?memberId={memberId}" + (startLocalDate.HasValue ? $"&start={startLocalDate:yyyy-MM-dd}" : "");
++             return (await _http.GetFromJsonAsync<MemberWeeklySummaryDto>(url))!;
++         }
++ 
++         public async Task<List<TrainingSessionListItemDto>> GetRecentSessionsAsync(Guid memberId, int take = 3)
++         {
++             var url = $"api/TrainingSessions/recent?memberId={memberId}&take={take}";
++             return await _http.GetFromJsonAsync<List<TrainingSessionListItemDto>>(url) ?? new();
++         }
++ 
++         public async Task<AdminWeeklySummaryDto> GetAdminWeeklySummaryAsync(DateTime? startLocalDate, int take = 5)
++         {
++             var url = "api/Analytics/admin/weekly" + (startLocalDate.HasValue ? $"?start={startLocalDate:yyyy-MM-dd}&take={take}" : $"?take={take}");
++             return (await _http.GetFromJsonAsync<AdminWeeklySummaryDto>(url))!;
++         }
++ 
++         /// <inheritdoc />
++         public async Task<MemberStatsDto> GetMemberStatsAsync(Guid memberId)
++         {
++             var url = $"api/Analytics/member/stats?memberId={memberId}";
++             return (await _http.GetFromJsonAsync<MemberStatsDto>(url))!;
++         }
++     }
++ }
+*** a/Meow.Web/Controllers/DashboardController.cs
+--- b/Meow.Web/Controllers/DashboardController.cs
+*************** public class DashboardController : Controller
+*** 1,1 ****
+--- 1,92 ----
++ using System;
++ using System.Collections.Generic;
++ using System.Security.Claims;
++ using System.Threading.Tasks;
++ using Meow.Shared.Dtos.Analytics;
++ using Meow.Shared.Dtos.Training;
++ using Meow.Web.Services;
++ using Microsoft.AspNetCore.Authorization;
++ using Microsoft.AspNetCore.Mvc;
++ 
++ namespace Meow.Web.Controllers
++ {
++     [Authorize]
++     public class DashboardController : Controller
++     {
++         private readonly IBackendApi _api;
++         private readonly ILogger<DashboardController> _logger;
++ 
++         public DashboardController(IBackendApi api, ILogger<DashboardController> logger)
++         {
++             _api = api;
++             _logger = logger;
++         }
++ 
++         public sealed class MyWeeklyVm
++         {
++             public MemberWeeklySummaryDto Weekly { get; init; } = new();
++             public List<TrainingSessionListItemDto> Recent { get; init; } = new();
++             public MemberStatsDto? Stats { get; init; }   // ★ 新增：會員整體統計
++         }
++ 
++         [HttpGet]
++         public async Task<IActionResult> MyWeekly(DateTime? week)
++         {
++             var idStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
++             if (!Guid.TryParse(idStr, out var memberId))
++             {
++                 return Forbid();
++             }
++ 
++             try
++             {
++                 var weeklyTask = _api.GetMemberWeeklySummaryAsync(memberId, week);
++                 var recentTask = _api.GetRecentSessionsAsync(memberId, 3);
++                 var statsTask  = _api.GetMemberStatsAsync(memberId); // ★ 新增
++ 
++                 await Task.WhenAll(weeklyTask, recentTask, statsTask);
++ 
++                 var vm = new MyWeeklyVm
++                 {
++                     Weekly = weeklyTask.Result,
++                     Recent = recentTask.Result,
++                     Stats  = statsTask.Result   // ★ 新增
++                 };
++                 return View(vm);
++             }
++             catch (Exception ex)
++             {
++                 _logger.LogError(ex, "Load MyWeekly failed");
++                 TempData["Error"] = ex.Message;
++                 return View(new MyWeeklyVm());
++             }
++         }
++     }
++ }
