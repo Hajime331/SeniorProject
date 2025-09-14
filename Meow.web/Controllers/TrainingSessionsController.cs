@@ -16,27 +16,25 @@ public class TrainingSessionsController : Controller
     }
 
 
-    // GET /TrainingSessions?from=2025-09-01&to=2025-09-08&page=1&pageSize=12
-    public async Task<IActionResult> Index(DateTime? from, DateTime? to, int page = 1, int pageSize = 12)
+    // 單一版本：支援 tagIds（名稱或 Guid 的字串清單）
+    // GET /TrainingSessions?from=...&to=...&page=1&pageSize=20&tagIds=胸部&tagIds=拉伸
+    [HttpGet]
+    public async Task<IActionResult> Index(DateTime? from, DateTime? to, List<string>? tagIds, int page = 1, int pageSize = 20)
     {
-        // 從 Claims 抓目前登入者的 MemberID（NameIdentifier）
         var idStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
-        if (!Guid.TryParse(idStr, out var memberId))
-        {
-            return Forbid(); // 理論上不會；保險起見
-        }
+        if (!Guid.TryParse(idStr, out var memberId)) return Forbid();
 
-        var paged = await _api.GetTrainingSessionsAsync(memberId, from, to, page, pageSize);
+        var tags = await _api.GetTagsAsync();
 
-        var vm = new TrainingSessionListVm
+        var vm = new TrainingSessionIndexVm
         {
-            Items = paged.Items,
-            TotalCount = paged.TotalCount,
-            Page = paged.Page,
-            PageSize = paged.PageSize,
             From = from,
-            To = to
+            To = to,
+            SelectedTagIds = (tagIds ?? new List<string>()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList(),
+            AllTags = tags.Select(t => (t.TagID, t.Name, (string?)null)).ToList()
         };
+
+        vm.Result = await _api.GetTrainingSessionsAsync(memberId, from, to, page, pageSize, vm.SelectedTagIds);
 
         return View(vm);
     }
@@ -83,7 +81,7 @@ public class TrainingSessionsController : Controller
                 TempData["Error"] = "找不到這筆訓練紀錄。";
                 return RedirectToAction(nameof(Index));
             }
-            return View(dto); // 要把 dto 丟進 View
+            return View(dto);
         }
         catch (HttpRequestException ex)
         {
@@ -91,6 +89,7 @@ public class TrainingSessionsController : Controller
             return RedirectToAction(nameof(Index));
         }
     }
+
 
 
     // POST /TrainingSessions/Complete

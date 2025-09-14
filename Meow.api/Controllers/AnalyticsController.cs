@@ -3,6 +3,8 @@ using Meow.Shared.Dtos.Analytics;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Linq;
+using System.Threading.Tasks;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -176,4 +178,86 @@ public class AnalyticsController : ControllerBase
         return Ok(result);
     }
 
+
+
+    [HttpGet("member/stats")]
+    public async Task<ActionResult<MemberStatsDto>> MemberStats([FromQuery] Guid memberId)
+    {
+        if (memberId == Guid.Empty) return BadRequest("memberId is required.");
+
+        var q = _db.TrainingSessions.AsNoTracking()
+            .Where(s => s.MemberID == memberId && s.CompletedFlag && s.EndedAt != null);
+
+        var totalSessions = await q.CountAsync();
+        var totalMinutes = await q.SumAsync(s => EF.Functions.DateDiffMinute(s.StartedAt, s.EndedAt!.Value));
+        var avg = totalSessions == 0 ? 0 : (double)totalMinutes / totalSessions;
+
+        var firstAt = await q.MinAsync(s => (DateTime?)s.StartedAt);
+        var lastAt = await q.MaxAsync(s => (DateTime?)s.EndedAt);
+
+        // 台北時區、週一為週首
+        TimeZoneInfo tz;
+        try { tz = TimeZoneInfo.FindSystemTimeZoneById("Taipei Standard Time"); }
+        catch { tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Taipei"); }
+
+        DateTime ToWeekStartLocal(DateTime utc)
+        {
+            var local = TimeZoneInfo.ConvertTimeFromUtc(utc, tz).Date;
+            int delta = ((int)local.DayOfWeek + 6) % 7; // Monday=0
+            return local.AddDays(-delta);
+        }
+
+        // 先取回 UTC 時間（在資料庫端只做條件/投影，不做本地方法）
+        var startedList = await q.Select(s => s.StartedAt).ToListAsync();
+
+        // 再在記憶體中執行你的區域函式
+        var weekStarts = startedList
+            .Select(ToWeekStartLocal)
+            .Distinct()
+            .OrderBy(d => d)
+            .ToList();
+
+
+        int best = 0, cur = 0; DateTime? prev = null;
+        foreach (var w in weekStarts)
+        {
+            cur = (prev == null || (w - prev.Value).TotalDays == 7) ? cur + 1 : 1;
+            best = Math.Max(best, cur);
+            prev = w;
+        }
+
+        // 目前連續週（含本週或上一週起點）
+        int current = 0;
+        if (weekStarts.Count > 0)
+        {
+            var todayLocal = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz).Date;
+            int delta = ((int)todayLocal.DayOfWeek + 6) % 7;
+            var thisWeekStart = todayLocal.AddDays(-delta);
+            var lastWeekStart = thisWeekStart.AddDays(-7);
+
+            for (int i = weekStarts.Count - 1; i >= 0; i--)
+            {
+                var w = weekStarts[i];
+                if (current == 0 && (w == thisWeekStart || w == lastWeekStart))
+                {
+                    current = 1;
+                    var j = i - 1; var expect = w.AddDays(-7);
+                    while (j >= 0 && weekStarts[j] == expect) { current++; expect = expect.AddDays(-7); j--; }
+                    break;
+                }
+            }
+        }
+
+        return Ok(new MemberStatsDto
+        {
+            MemberID = memberId,
+            TotalSessions = totalSessions,
+            TotalMinutes = totalMinutes,
+            AvgMinutesPerSession = avg,
+            CurrentWeeklyStreak = current,
+            BestWeeklyStreak = best,
+            FirstSessionAt = firstAt,
+            LastSessionAt = lastAt
+        });
+    }
 }

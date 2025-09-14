@@ -4,6 +4,7 @@ using Meow.Shared.Dtos.Analytics;       // AdminWeeklySummaryDto
 using Meow.Shared.Dtos.TrainingSessions;
 using Meow.Web.Areas.Admin.ViewModels;  // DashboardVm
 using Meow.Web.Services;                // IBackendApi
+using Meow.Web.ViewModels.Dashboard;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;
@@ -27,11 +28,6 @@ namespace Meow.Web.Controllers
         [HttpGet]
         public IActionResult Index() => RedirectToAction(nameof(MyWeekly));
 
-        public sealed class MyWeeklyVm
-        {
-            public MemberWeeklySummaryDto Weekly { get; init; } = new();
-            public List<TrainingSessionListItemDto> Recent { get; init; } = new();
-        }
 
         // 會員個人每週摘要頁
         [HttpGet]
@@ -40,18 +36,30 @@ namespace Meow.Web.Controllers
             var idStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
             if (!Guid.TryParse(idStr, out var memberId)) return Forbid();
 
-            var weeklyTask = _api.GetMemberWeeklySummaryAsync(memberId, week);
-            var recentTask = _api.GetRecentSessionsAsync(memberId, 3);
-            await Task.WhenAll(weeklyTask, recentTask);
-
-            var vm = new MyWeeklyVm
+            try
             {
-                Weekly = weeklyTask.Result,
-                Recent = recentTask.Result
-            };
+                var weeklyTask = _api.GetMemberWeeklySummaryAsync(memberId, week);
+                var recentTask = _api.GetRecentSessionsAsync(memberId, 3);
+                var statsTask = _api.GetMemberStatsAsync(memberId);   // ★ 新增
 
-            return View(vm);
+                await Task.WhenAll(weeklyTask, recentTask, statsTask);
+
+                var vm = new MyWeeklyVm
+                {
+                    Weekly = weeklyTask.Result,
+                    Recent = recentTask.Result,
+                    Stats = statsTask.Result                  //新增
+                };
+                return View(vm);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Load MyWeekly failed");
+                TempData["Error"] = ex.Message;
+                return View(new MyWeeklyVm());
+            }
         }
+
 
 
     }

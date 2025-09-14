@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Collections.Generic;
 
 namespace Meow.Shared.Dtos.TrainingSessions
 {
@@ -11,5 +12,9 @@ namespace Meow.Shared.Dtos.TrainingSessions
         string? Notes,
         int? CaloriesBurned,
         int? PointsAwarded
-    );
+    )
+    {
+        // 清單顯示用的標籤名稱（徽章）
+        public List<string>? TagNames { get; init; }
+    }
 }

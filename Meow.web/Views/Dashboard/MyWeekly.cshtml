@@ -1,4 +1,5 @@
-﻿@model Meow.Web.Controllers.DashboardController.MyWeeklyVm
+﻿@model Meow.Web.ViewModels.Dashboard.MyWeeklyVm
+
 @using System.Globalization
 @{
     ViewData["Title"] = "我的儀表板";
@@ -26,7 +27,7 @@
     </form>
 </div>
 
-<div class="row g-3">
+<div class="row g-3 mt-0">
     <div class="col-md-4">
         <div class="card shadow-sm">
             <div class="card-body">
@@ -45,6 +46,26 @@
         <div class="card shadow-sm">
             <div class="card-body">
                 <div class="text-muted small">點數</div><div class="fs-3 fw-bold">@d.Points</div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">平均每次時長</div>
+                <div class="fs-3 fw-bold">@Math.Round(Model.Stats?.AvgMinutesPerSession ?? 0) 分鐘</div>
+                <div class="text-muted small">
+                    （總分鐘 @Model.Stats?.TotalMinutes / 總場次 @Model.Stats?.TotalSessions）
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <div class="text-muted small">最佳連續週</div>
+                <div class="fs-3 fw-bold">@Model.Stats?.BestWeeklyStreak 週</div>
+                <div class="text-muted small">目前連續：@Model.Stats?.CurrentWeeklyStreak 週</div>
             </div>
         </div>
     </div>

@@ -16,35 +16,6 @@ public class AccountController : Controller
         _logger = logger;
     }
 
-    [HttpGet]
-    public async Task<IActionResult> Profile()
-    {
-        var id = User.GetUserId();
-        var m = await _api.GetMemberAsync(id);
-        var vm = new AccountProfileVm { Email = m.Email, Nickname = m.Nickname };
-        return View(vm);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Profile(AccountProfileVm vm)
-    {
-        if (!ModelState.IsValid) return View(vm);
-
-        try
-        {
-            var id = User.GetUserId();
-            await _api.UpdateMemberNicknameAsync(id, vm.Nickname);
-            TempData["Success"] = "暱稱已更新";
-            return RedirectToAction(nameof(Profile));
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "更新暱稱失敗");
-            TempData["Error"] = "更新暱稱失敗，請稍後再試。";
-            return View(vm);
-        }
-    }
 
     [HttpGet]
     public IActionResult ChangePassword() => View(new ChangePasswordVm());
@@ -72,6 +43,75 @@ public class AccountController : Controller
         {
             _logger.LogError(ex, "變更密碼失敗");
             TempData["Error"] = "變更密碼失敗，請確認目前密碼或稍後再試。";
+            return View(vm);
+        }
+    }
+
+
+    [HttpGet]
+    public async Task<IActionResult> Profile()
+    {
+        var id = User.GetUserId();
+        // 取得基本會員資料與擴展資料
+        var member = await _api.GetMemberAsync(id);
+        var profile = await _api.GetMemberProfileAsync(id);
+        var avatars = await _api.GetAvatarsAsync();
+
+        var vm = new AccountProfileVm
+        {
+            Email = member.Email,
+            Nickname = member.Nickname,
+            BirthDate = profile?.BirthDate,
+            Gender = profile?.Gender,
+            HeightCm = profile?.HeightCm,
+            WeightKg = profile?.WeightKg,
+            AvatarID = profile?.AvatarID,
+            AvatarUrl = profile?.AvatarUrl,
+            Avatars = avatars
+        };
+        return View(vm);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Profile(AccountProfileVm vm)
+    {
+        if (!ModelState.IsValid)
+        {
+            // 若驗證失敗，重新載入可選頭像列表以供顯示
+            vm.Avatars = await _api.GetAvatarsAsync();
+            return View(vm);
+        }
+
+        try
+        {
+            var id = User.GetUserId();
+            // 更新暱稱
+            await _api.UpdateMemberNicknameAsync(id, vm.Nickname);
+
+            // 更新擴展資料
+            var dto = new MemberProfileUpdateDto
+            {
+                BirthDate = vm.BirthDate,
+                Gender = vm.Gender,
+                HeightCm = vm.HeightCm,
+                WeightKg = vm.WeightKg
+            };
+            await _api.UpdateMemberProfileAsync(id, dto);
+
+            // 若有選擇頭像，呼叫 API 更新頭像
+            if (vm.AvatarID.HasValue)
+                await _api.UpdateMemberAvatarAsync(id, vm.AvatarID.Value);
+
+            TempData["Success"] = "個人資料已更新。";
+            return RedirectToAction(nameof(Profile));
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "更新個人資料失敗");
+            TempData["Error"] = "更新個人資料失敗，請稍後再試。";
+            // 失敗時仍需重新載入頭像清單
+            vm.Avatars = await _api.GetAvatarsAsync();
             return View(vm);
         }
     }

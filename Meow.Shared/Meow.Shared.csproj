@@ -7,6 +7,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Folder Include="Dtos\Avatar\" />
     <Folder Include="Properties\" />
   </ItemGroup>
 

@@ -3,6 +3,7 @@ using Meow.Shared.Dtos.Analytics;
 using Meow.Shared.Dtos.Common;
 using Meow.Shared.Dtos.TrainingSessions;
 using Meow.Web.Models;
+using static Meow.Web.Services.BackendApi;
 
 namespace Meow.Web.Services
 {
@@ -52,21 +53,18 @@ namespace Meow.Web.Services
         Task ChangePasswordAsync(Guid id, ChangePasswordDto dto);
 
 
-        // 供「會員訓練紀錄頁」使用
+        /*// 供「會員訓練紀錄頁」使用
         // 取得會員的訓練紀錄清單（分頁、可篩選日期區間）
         Task<PagedResultDto<TrainingSessionListItemDto>> GetTrainingSessionsAsync(
-        Guid memberId, DateTime? from, DateTime? to, int page, int pageSize);
+        Guid memberId, DateTime? from, DateTime? to, int page, int pageSize);*/
 
         // 開始新的訓練紀錄
         Task<TrainingSessionDetailDto> StartTrainingSessionAsync(Guid memberId, TrainingSessionCreateDto dto);
 
-        // 取得單一訓練紀錄的詳細資料
-        Task<TrainingSessionDetailDto> GetTrainingSessionAsync(Guid sessionId);
-
         // 完成訓練紀錄（包含訓練項目）
         Task<TrainingSessionDetailDto> CompleteTrainingSessionAsync(Guid sessionId, TrainingSessionCompleteDto dto);
 
-
+        // 更新訓練紀錄的訓練項目
         Task<TrainingSessionItemDto> UpdateTrainingSessionItemAsync(TrainingSessionItemUpdateDto dto);
 
 
@@ -82,6 +80,31 @@ namespace Meow.Web.Services
         // 取得熱門訓練組合排行
         Task<IReadOnlyList<PopularTrainingSetDto>> GetPopularTrainingSetsAsync(
         DateTime? start = null, DateTime? end = null, int take = 10);
+
+
+        Task<MemberStatsDto> GetMemberStatsAsync(Guid memberId);
+
+
+        // 取得所有系統頭像
+        Task<List<AvatarDto>> GetAvatarsAsync();
+
+        // 取得指定會員的擴展資料
+        Task<MemberProfileDto?> GetMemberProfileAsync(Guid memberId);
+
+        // 更新指定會員的擴展資料（生日、性別、身高、體重）
+        Task UpdateMemberProfileAsync(Guid memberId, MemberProfileUpdateDto dto);
+
+        // 設定指定會員的頭像
+        Task UpdateMemberAvatarAsync(Guid memberId, Guid avatarId);
+
+        // 供「會員訓練紀錄頁」使用 - 進階版
+        Task<PagedResultDto<TrainingSessionListItemDto>> GetTrainingSessionsAsync(
+        Guid memberId, DateTime? from, DateTime? to, int page, int pageSize,
+        IEnumerable<string>? tagIds = null);
+
+        // 修正可 Null：和 BackendApi 實作一致，避免警告/錯誤
+        Task<TrainingSessionDetailDto?> GetTrainingSessionAsync(Guid sessionId);
+
 
     }
 }

@@ -14,74 +14,78 @@ public class TrainingSessionsController : ControllerBase
         _db = db;
     }
 
-    // GET /api/TrainingSessions?memberId=&from=&to=&page=1&pageSize=20
+    // GET /api/TrainingSessions?memberId=&from=&to=&page=1&pageSize=20&tagIds=胸部,拉伸,GUID,...
     [HttpGet]
     public async Task<ActionResult<PagedResultDto<TrainingSessionListItemDto>>> Get(
         [FromQuery] Guid memberId,
         [FromQuery] DateTime? from,
         [FromQuery] DateTime? to,
         [FromQuery] int page = 1,
-        [FromQuery] int pageSize = 20)
+        [FromQuery] int pageSize = 20,
+        [FromQuery] string? tagIds = null)
     {
-        // 如果沒有帶有效的 memberId（Guid.Empty == 0000...），就直接回 400 Bad Request。
-        // 這樣避免撈到整個資料庫的所有 Session。
+        // 參數檢查
         if (memberId == Guid.Empty) return BadRequest("memberId is required.");
-
-        // 確保 page 至少是 1，避免使用者傳 0 或負數。
         if (page < 1) page = 1;
-
-        // 限制 pageSize 在 1 到 100 之間，避免一次撈太多或太少。
-        // Math.Clamp(x, min, max)：把數值限制在範圍內。
         pageSize = Math.Clamp(pageSize, 1, 100);
 
-        // 建立基礎查詢：從 DbContext 的 TrainingSessions 開始。
-        // AsNoTracking()：查詢只讀，不追蹤實體，效能較好。
-        // Where(...)：只取該會員的 Session。
+        // 1) 解析 tagIds：支援 Guid 與 中文名稱
+        var tokens = (tagIds ?? string.Empty)
+            .Split(',', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+        var guidSet = new HashSet<Guid>();
+        var nameTokens = new List<string>();
+        foreach (var t in tokens)
+        {
+            if (Guid.TryParse(t, out var g)) guidSet.Add(g);
+            else nameTokens.Add(t);
+        }
+
+        if (nameTokens.Count > 0)
+        {
+            var nameIds = await _db.Tags
+                .Where(x => nameTokens.Contains(x.Name))
+                .Select(x => x.TagID)
+                .ToListAsync();
+            foreach (var id in nameIds) guidSet.Add(id);
+        }
+
         var q = _db.TrainingSessions
             .AsNoTracking()
             .Where(s => s.MemberID == memberId);
 
-        // 如果有 from 參數，就加上篩選條件：開始時間 >= from。
         if (from.HasValue) q = q.Where(s => s.StartedAt >= from.Value);
-
-        // 如果有 to 參數，就加上篩選條件：開始時間 < to+1 天。
-        // 用 to.Value.Date.AddDays(1) 是為了讓篩選「含當天」。
         if (to.HasValue) q = q.Where(s => s.StartedAt < to.Value.Date.AddDays(1));
 
-        // CountAsync()：先算總筆數，用於分頁的 TotalCount。
+        // 2) Tag 篩選（OR 邏輯）
+        if (guidSet.Count > 0)
+        {
+            q = q.Where(s => _db.SetTagMaps.Any(m => m.SetID == s.SetID && guidSet.Contains(m.TagID)));
+        }
+
         var total = await q.CountAsync();
 
-        // --------- 以下是取出分頁資料 ---------
-
-        // 寫法 1：直接用導覽屬性 Set 拿到關聯的 TrainingSet.Name。
-        // EF 會自動產生 JOIN，不一定需要 Include。
         var items = await q
-            .OrderByDescending(s => s.StartedAt)   // 依開始時間由新到舊排序
-            .Skip((page - 1) * pageSize)           // 跳過前面 (page-1)*pageSize 筆
-            .Take(pageSize)                        // 取出 pageSize 筆
+            .OrderByDescending(s => s.StartedAt)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(s => new TrainingSessionListItemDto(
                 s.SessionID,
                 s.StartedAt,
                 s.EndedAt,
                 s.CompletedFlag,
-                s.Set.Name,             // 導覽屬性：抓 TrainingSet 的 Name
+                s.Set.Name,
                 s.Notes,
                 s.CaloriesBurned,
                 s.PointsAwarded
-            ))
-            .ToListAsync();   // 執行查詢並轉成清單
-
-        // 寫法 2：明確 Include（可留著參考）
-        // var items = await q
-        //     .Include(s => s.Set)
-        //     .OrderByDescending(s => s.StartedAt)
-        //     .Skip((page - 1) * pageSize)
-        //     .Take(pageSize)
-        //     .Select(s => new TrainingSessionListItemDto(
-        //         s.SessionID, s.StartedAt, s.EndedAt, s.CompletedFlag,
-        //         s.Set.Name, s.Notes, s.CaloriesBurned, s.PointsAwarded
-        //     ))
-        //     .ToListAsync();
+            )
+            {
+                TagNames = _db.SetTagMaps
+                    .Where(m => m.SetID == s.SetID)
+                    .Select(m => m.Tag.Name)
+                    .ToList()
+            })
+            .ToListAsync();
 
         return Ok(new PagedResultDto<TrainingSessionListItemDto>
         {
@@ -94,8 +98,8 @@ public class TrainingSessionsController : ControllerBase
 
     [HttpPost] // POST /api/TrainingSessions?memberId=...
     public async Task<ActionResult<TrainingSessionDetailDto>> Create(
-    [FromQuery] Guid memberId,
-    [FromBody] TrainingSessionCreateDto dto)
+        [FromQuery] Guid memberId,
+        [FromBody] TrainingSessionCreateDto dto)
     {
         // 參數基本檢查
         if (memberId == Guid.Empty) return BadRequest("memberId is required.");
@@ -231,9 +235,7 @@ public class TrainingSessionsController : ControllerBase
         return Ok(dto);
     }
 
-
     // PUT /api/TrainingSessions/{id}/complete
-    // 完成訓練：寫入 EndedAt 與 CompletedFlag=true（外加可選的 CaloriesBurned/PointsAwarded/Notes），回傳更新後的明細。
     [HttpPut("{id:guid}/complete")]
     public async Task<ActionResult<TrainingSessionDetailDto>> Complete(Guid id, [FromBody] TrainingSessionCompleteDto dto)
     {
@@ -243,49 +245,38 @@ public class TrainingSessionsController : ControllerBase
 
         if (session is null) return NotFound();
 
-        // 1) 決定結束時間（預設用現在 UTC；也可用 dto.EndedAt）
         var ended = (dto?.EndedAt ?? DateTime.UtcNow);
-        if (ended < session.StartedAt) ended = session.StartedAt; // 防守：避免倒退
+        if (ended < session.StartedAt) ended = session.StartedAt;
 
-        // 2) 寫入狀態
         session.EndedAt = ended;
         session.CompletedFlag = dto?.CompletedFlag ?? true;
         session.CaloriesBurned = dto?.CaloriesBurned;
         session.PointsAwarded = dto?.PointsAwarded;
 
-        // dto 是 null 就整體回 null，不拋例外
-        // string.IsNullOrWhiteSpace(...)：檢查字串是否為 null、空字串、或只有空白
         if (!string.IsNullOrWhiteSpace(dto?.Notes))
         {
-            // 告訴編譯器「此處我確定不是 null」
-            session.Notes = dto!.Notes; // 若你希望保留舊 notes 就改成追加
+            session.Notes = dto!.Notes;
         }
 
         await _db.SaveChangesAsync();
 
-        // 3) 回傳最新明細（沿用你現有的投影邏輯）
         return await GetById(id);
     }
 
-
-    
     [HttpPut("items")]
     public async Task<ActionResult<TrainingSessionItemDto>> UpdateItem([FromBody] TrainingSessionItemUpdateDto dto)
     {
         if (dto is null || dto.SessionItemID == Guid.Empty)
             return BadRequest("SessionItemID is required.");
 
-        // 找到使用者要更新的那個 SessionItem，而且連同它的 Video 物件一起載入，方便稍後回傳 VideoTitle
         var item = await _db.TrainingSessionItems
-            .Include(i => i.Video) // 為了回傳 VideoTitle
+            .Include(i => i.Video)
             .FirstOrDefaultAsync(i => i.SessionItemID == dto.SessionItemID);
 
         if (item is null) return NotFound("Session item not found.");
 
-        // —— 欄位逐一「若有值才更新」——
         if (!string.IsNullOrWhiteSpace(dto.Status))
         {
-            // 防呆：只接受 Done/Skipped/Partial（對應你的 CHECK 約束）
             var ok = dto.Status is "Done" or "Skipped" or "Partial";
             if (!ok) return BadRequest("Invalid status.");
             item.Status = dto.Status;
@@ -296,14 +287,10 @@ public class TrainingSessionsController : ControllerBase
         if (dto.ActualRestSec.HasValue) item.ActualRestSec = dto.ActualRestSec;
         if (dto.RoundsDone.HasValue) item.RoundsDone = dto.RoundsDone;
 
-        // 只有當前端真的有傳 Note 參數時才更新；而且如果傳的是空字串，就把資料庫的 Note 清空（設 null）
-        // 跟 !string.IsNullOrWhiteSpace() 不一樣，因為它允許「空字串」進來
-        // 如果 dto.Note 是 null、空字串或全空白 → 存回資料庫就改成 null。否則 → 存使用者輸入的內容
         if (dto.Note is not null) item.Note = string.IsNullOrWhiteSpace(dto.Note) ? null : dto.Note;
 
         await _db.SaveChangesAsync();
 
-        // 回傳更新後的單筆 DTO（輕量）
         var result = new TrainingSessionItemDto
         {
             SessionItemID = item.SessionItemID,

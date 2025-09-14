@@ -3,7 +3,7 @@
     ViewData["Title"] = "會員中心 - 個人資料";
 }
 
-<h1 class="h4 mb-3">個人資料</h1>
+<h2>會員中心 - 個人資料</h2>
 
 <form asp-action="Profile" method="post">
     <div class="mb-3">
@@ -15,10 +15,61 @@
         <input asp-for="Nickname" class="form-control" />
         <span asp-validation-for="Nickname" class="text-danger"></span>
     </div>
+    <div class="mb-3">
+        <label asp-for="BirthDate" class="form-label"></label>
+        <input asp-for="BirthDate" type="date" class="form-control" />
+        <span asp-validation-for="BirthDate" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="Gender" class="form-label"></label>
+        <select asp-for="Gender" class="form-select">
+            <option value="">-- 選擇性別 --</option>
+            <option value="Male">男</option>
+            <option value="Female">女</option>
+            <option value="Other">其他</option>
+        </select>
+        <span asp-validation-for="Gender" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="HeightCm" class="form-label"></label>
+        <input asp-for="HeightCm" class="form-control" />
+        <span asp-validation-for="HeightCm" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label asp-for="WeightKg" class="form-label"></label>
+        <input asp-for="WeightKg" class="form-control" />
+        <span asp-validation-for="WeightKg" class="text-danger"></span>
+    </div>
 
-    <button type="submit" class="btn btn-dark">儲存</button>
+    @if (Model.Avatars != null && Model.Avatars.Count > 0)
+    {
+        <div class="mb-3">
+            <label class="form-label">頭像</label>
+            <div class="row row-cols-2 row-cols-md-4 g-3">
+                @foreach (var avatar in Model.Avatars)
+                {
+                    <div class="col text-center">
+                        <input type="radio" name="AvatarID"
+                               value="@avatar.AvatarID"
+                               id="avatar_@avatar.AvatarID"
+                               @(Model.AvatarID == avatar.AvatarID ? "checked" : "") />
+                        <label for="avatar_@avatar.AvatarID">
+                            <img src="@avatar.ImageUrl"
+                                 alt="@avatar.Name"
+                                 class="img-thumbnail"
+                                 style="max-width: 100px;" />
+                        </label>
+                    </div>
+                }
+            </div>
+        </div>
+    }
+
+    <button type="submit" class="btn btn-primary">儲存</button>
 </form>
 
 @section Scripts {
-    <partial name="_ValidationScriptsPartial" />
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
 }

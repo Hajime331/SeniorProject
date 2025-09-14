@@ -54,7 +54,7 @@ namespace Meow.Web.Services
             }
 
             // 201/200 都會通過，其他會丟例外
-            resp.EnsureSuccessStatusCode(); 
+            resp.EnsureSuccessStatusCode();
             var created = await resp.Content.ReadFromJsonAsync<MemberDto>();
             return created;
         }
@@ -118,8 +118,8 @@ namespace Meow.Web.Services
             }
         }
 
-      
-        // 取得會員的訓練紀錄清單（分頁、可篩選日期區間）
+
+        /*// 取得會員的訓練紀錄清單（分頁、可篩選日期區間）
         public async Task<PagedResultDto<TrainingSessionListItemDto>> GetTrainingSessionsAsync(
         Guid memberId, DateTime? from, DateTime? to, int page, int pageSize)
         {
@@ -136,7 +136,7 @@ namespace Meow.Web.Services
             var url = QueryHelpers.AddQueryString("api/TrainingSessions", qs!);
             var resp = await _http.GetFromJsonAsync<PagedResultDto<TrainingSessionListItemDto>>(url);
             return resp!;
-        }
+        }*/
 
 
         // 新增：開始新的訓練課表
@@ -152,15 +152,6 @@ namespace Meow.Web.Services
 
             var result = await resp.Content.ReadFromJsonAsync<TrainingSessionDetailDto>();
             return result!;
-        }
-
-        // 取得單一訓練紀錄的詳細資料
-        public async Task<TrainingSessionDetailDto?> GetTrainingSessionAsync(Guid sessionId)
-        {
-            var resp = await _http.GetAsync($"api/TrainingSessions/{sessionId}");
-            if (resp.StatusCode == System.Net.HttpStatusCode.NotFound) return null;
-            resp.EnsureSuccessStatusCode();
-            return (await resp.Content.ReadFromJsonAsync<TrainingSessionDetailDto>())!;
         }
 
 
@@ -220,8 +211,13 @@ namespace Meow.Web.Services
         }
 
         // 你的 PagedResult 若不在 Shared，就在此檔案補一個相容的小型 record
-        public record PagedResult<T>(List<T> Items, int TotalCount, int Page, int PageSize);
-
+        public record PagedResult<T>(List<T> Items, int TotalCount, int Page, int PageSize)
+        {
+            public static implicit operator PagedResult<T>(PagedResultDto<TrainingSessionListItemDto> v)
+            {
+                throw new NotImplementedException();
+            }
+        }
 
         public async Task<IReadOnlyList<PopularTrainingSetDto>> GetPopularTrainingSetsAsync(
     DateTime? start = null, DateTime? end = null, int take = 10)
@@ -245,6 +241,93 @@ namespace Meow.Web.Services
             return System.Text.Json.JsonSerializer.Deserialize<IReadOnlyList<PopularTrainingSetDto>>(body,
                        new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true })
                    ?? Array.Empty<PopularTrainingSetDto>();
+        }
+
+        // 供「會員分析頁」使用
+        public async Task<MemberStatsDto> GetMemberStatsAsync(Guid memberId)
+        {
+            return (await _http.GetFromJsonAsync<MemberStatsDto>($"api/Analytics/member/stats?memberId={memberId}"))!;
+        }
+
+        // 供「會員個人資料頁」使用
+        public async Task<List<AvatarDto>> GetAvatarsAsync()
+        {
+            return await _http.GetFromJsonAsync<List<AvatarDto>>("api/Avatars") ?? [];
+        }
+
+        // 取得會員個人資料（含暱稱、頭像、註冊日期等）
+        public async Task<MemberProfileDto?> GetMemberProfileAsync(Guid memberId)
+        {
+            var resp = await _http.GetAsync($"api/Members/{memberId}/profile");
+            if (resp.StatusCode == HttpStatusCode.NotFound)
+                return null;
+
+            resp.EnsureSuccessStatusCode();
+            return await resp.Content.ReadFromJsonAsync<MemberProfileDto>();
+        }
+
+        // 更新會員個人資料（暱稱、頭像、生日、性別等）
+        public async Task UpdateMemberProfileAsync(Guid memberId, MemberProfileUpdateDto dto)
+        {
+            var resp = await _http.PutAsJsonAsync($"api/Members/{memberId}/profile", dto);
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                throw new ApplicationException($"UpdateMemberProfile failed: {(int)resp.StatusCode} {resp.StatusCode}\n{body}");
+            }
+        }
+
+        // 更新會員頭像
+        public async Task UpdateMemberAvatarAsync(Guid memberId, Guid avatarId)
+        {
+            var resp = await _http.PutAsync($"api/Members/{memberId}/avatar/{avatarId}", null);
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                throw new ApplicationException($"UpdateMemberAvatar failed: {(int)resp.StatusCode} {resp.StatusCode}\n{body}");
+            }
+        }
+
+        public async Task<PagedResultDto<TrainingSessionListItemDto>> GetTrainingSessionsAsync(
+        Guid memberId, DateTime? from, DateTime? to, int page, int pageSize,
+        IEnumerable<string>? tagIds = null)
+        {
+            var qs = new List<string>
+        {
+            $"memberId={memberId}",
+            $"page={page}",
+            $"pageSize={pageSize}"
+        };
+            if (from.HasValue) qs.Add($"from={Uri.EscapeDataString(from.Value.ToString("o"))}");
+            if (to.HasValue) qs.Add($"to={Uri.EscapeDataString(to.Value.ToString("o"))}");
+
+            if (tagIds is not null)
+            {
+                var tokens = tagIds.Where(s => !string.IsNullOrWhiteSpace(s))
+                                   .Distinct()
+                                   .Select(Uri.EscapeDataString)
+                                   .ToArray();
+                if (tokens.Length > 0)
+                    qs.Add("tagIds=" + string.Join(",", tokens));
+            }
+
+            var url = "api/TrainingSessions?" + string.Join("&", qs);
+            return await _http.GetFromJsonAsync<PagedResultDto<TrainingSessionListItemDto>>(url)
+                   ?? new PagedResultDto<TrainingSessionListItemDto>
+                   {
+                       Items = new List<TrainingSessionListItemDto>(),
+                       TotalCount = 0,
+                       Page = page,
+                       PageSize = pageSize
+                   };
+        }
+
+        public async Task<TrainingSessionDetailDto?> GetTrainingSessionAsync(Guid sessionId)
+        {
+            var resp = await _http.GetAsync($"api/TrainingSessions/{sessionId}");
+            if (resp.StatusCode == HttpStatusCode.NotFound) return null;
+            resp.EnsureSuccessStatusCode();
+            return await resp.Content.ReadFromJsonAsync<TrainingSessionDetailDto>();
         }
 
     }
