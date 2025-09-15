@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
-using Meow.Shared.Dtos.TrainingVideos;
 using Meow.Shared.Dtos.Tags;
+using Meow.Shared.Dtos.Videos;
 
 namespace Meow.Web.ViewModels.TrainingVideos
 {

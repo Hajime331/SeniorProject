@@ -1,4 +1,4 @@
-﻿namespace Meow.Shared.Dtos.TrainingVideos
+﻿namespace Meow.Shared.Dtos.Videos
 {
     public record TrainingVideoStatusDto(string Status);
 }

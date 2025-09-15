@@ -3,7 +3,7 @@ using Meow.Shared.Dtos.Analytics;
 using Meow.Shared.Dtos.Common;
 using Meow.Shared.Dtos.TrainingSessions;
 using Meow.Shared.Dtos.TrainingSets;
-using Meow.Shared.Dtos.TrainingVideos;
+using Meow.Shared.Dtos.Videos;
 using Meow.Web.Models;
 using static Meow.Web.Services.BackendApi;
 

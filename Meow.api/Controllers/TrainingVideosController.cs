@@ -1,7 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Meow.Api.Data;
-using Meow.Shared.Dtos.TrainingVideos;
+using Meow.Shared.Dtos.Videos;
 
 [ApiController]
 [Route("api/[controller]")]

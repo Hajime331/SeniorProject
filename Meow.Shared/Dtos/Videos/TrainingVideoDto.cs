@@ -1,7 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 
-namespace Meow.Shared.Dtos.TrainingVideos
+namespace Meow.Shared.Dtos.Videos
 {
     public record TrainingVideoDto(
         Guid VideoID,

@@ -2,5 +2,10 @@
 
 namespace Meow.Shared.Dtos.Tags
 {
-    public record TagDto(Guid TagID, string Name);
+    public class TagDto
+    {
+        public Guid TagId { get; set; }
+        public string Name { get; set; }
+        public string Category { get; set; } // '部位' / '一般'
+    }
 }
