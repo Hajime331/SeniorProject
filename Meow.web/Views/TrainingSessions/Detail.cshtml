@@ -1,268 +1,143 @@
-﻿@model Meow.Shared.Dtos.TrainingSessions.TrainingSessionDetailDto
-@using System.Globalization
+﻿@using System.Globalization
+@using Meow.Shared.Dtos.TrainingSessions
+@model TrainingSessionDetailDto
+
 @{
     ViewData["Title"] = "訓練明細";
-    string F(DateTime dt) => dt.ToLocalTime().ToString("yyyy/MM/dd HH:mm", CultureInfo.InvariantCulture);
+    var isCompleted = Model.CompletedFlag || Model.EndedAt.HasValue;
+    string FormatUtc(DateTime dt) => dt.ToLocalTime().ToString("yyyy/MM/dd HH:mm", CultureInfo.InvariantCulture);
+    var minutes = Model.EndedAt.HasValue
+        ? Math.Max(0, (int)(Model.EndedAt.Value - Model.StartedAt).TotalMinutes)
+        : (int?)null;
 }
 
-<h2 class="mb-3">@Model.SetName</h2>
+<h2 class="mb-3">訓練明細</h2>
 
-<div class="card mb-3 shadow-sm">
+<!-- 概要卡 -->
+<div class="card mb-3">
     <div class="card-body">
-        <div class="d-flex justify-content-between align-items-start">
-            <div>
-                <div class="small text-muted">Session：@Model.SessionID</div>
-                <div class="small text-muted">開始：@F(Model.StartedAt)</div>
-                @if (Model.EndedAt.HasValue)
+        <div class="d-flex flex-wrap align-items-center justify-content-between">
+            <div class="me-3">
+                <div class="fw-bold fs-5">@Model.SetName</div>
+                <div class="text-muted small">
+                    開始：@FormatUtc(Model.StartedAt)
+                    @if (Model.EndedAt.HasValue)
+                    {
+                        <span class="ms-3">結束：@FormatUtc(Model.EndedAt.Value)</span>
+                        <span class="ms-3">時長：@minutes 分</span>
+                    }
+                </div>
+                @if (!string.IsNullOrWhiteSpace(Model.Notes))
                 {
-                    <div class="small text-muted">結束：@F(Model.EndedAt.Value)</div>
+                    <div class="small mt-1">備註：@Model.Notes</div>
                 }
             </div>
-            <span class="badge @(Model.CompletedFlag ? "bg-success" : "bg-warning text-dark")">
-                @(Model.CompletedFlag ? "完成" : "進行中")
-            </span>
+
+            <div class="text-end">
+                @if (isCompleted)
+                {
+                    <span class="badge text-bg-success">已完成</span>
+                }
+                else
+                {
+                    <span class="badge text-bg-warning text-dark">進行中</span>
+                }
+            </div>
         </div>
-        @if (!string.IsNullOrWhiteSpace(Model.Notes))
-        {
-            <p class="mt-3 mb-0">@Model.Notes</p>
-        }
-        <ul class="list-inline mt-2 mb-0 small text-muted">
-            @if (Model.CaloriesBurned.HasValue)
-            {
-                <li class="list-inline-item">熱量：@Model.CaloriesBurned kcal</li>
-            }
-            @if (Model.PointsAwarded.HasValue)
-            {
-                <li class="list-inline-item">罐頭點數：@Model.PointsAwarded</li>
-            }
-        </ul>
     </div>
 </div>
 
-@if (!Model.CompletedFlag)
-{
-    <div class="alert alert-info py-2 small">小技巧：填一兩個欄位也能儲存，沒有填的不會覆蓋。</div>
-}
+<!-- 結束訓練（非 AJAX）：送到 TrainingSessionsController.Complete -->
+<div class="card mb-4">
+    <div class="card-header">結束訓練</div>
+    <div class="card-body">
+        <form asp-action="Complete" method="post" class="row g-3">
+            @Html.AntiForgeryToken()
+            <input type="hidden" name="id" value="@Model.SessionID" />
 
-<!-- 產生 Anti-Forgery Token，AJAX 會從這裡讀取 -->
-<form id="af-token-form">@Html.AntiForgeryToken()</form>
-
-<h5 class="mb-2">訓練步驟（可編輯）</h5>
-
-<div class="list-group" id="items-list">
-    @foreach (var i in Model.Items.OrderBy(x => x.OrderNo))
-    {
-        <div class="list-group-item" id="row-@i.SessionItemID">
-            <div class="d-flex justify-content-between align-items-center">
-                <div>
-                    <strong>#@i.OrderNo　@i.VideoTitle</strong>
-                    <span class="badge bg-secondary ms-2" data-field="status">@i.Status</span>
-                </div>
-                <small class="text-muted" data-field="feedback"></small>
+            <div class="col-12 col-md-4">
+                <label class="form-label">消耗卡路里 (kcal)</label>
+                <input type="number" class="form-control" name="calories" min="0" step="1" @(isCompleted ? "disabled" : null) />
             </div>
 
-            <div class="row g-2 mt-2">
-                <div class="col-6 col-md-2">
-                    <label class="form-label form-label-sm">次數</label>
-                    <input type="number" class="form-control form-control-sm" name="ActualReps"
-                           value="@(i.ActualReps?.ToString() ?? "")"
-                           data-orig="@(i.ActualReps?.ToString() ?? "")" />
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label form-label-sm">重量(kg)</label>
-                    <input type="number" step="0.1" class="form-control form-control-sm" name="ActualWeight"
-                           value="@(i.ActualWeight?.ToString() ?? "")"
-                           data-orig="@(i.ActualWeight?.ToString() ?? "")" />
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label form-label-sm">時間(秒)</label>
-                    <input type="number" class="form-control form-control-sm" name="ActualDurationSec"
-                           value="@(i.ActualDurationSec?.ToString() ?? "")"
-                           data-orig="@(i.ActualDurationSec?.ToString() ?? "")" />
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label form-label-sm">休息(秒)</label>
-                    <input type="number" class="form-control form-control-sm" name="ActualRestSec"
-                           value="@(i.ActualRestSec?.ToString() ?? "")"
-                           data-orig="@(i.ActualRestSec?.ToString() ?? "")" />
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label form-label-sm">回合</label>
-                    <input type="number" class="form-control form-control-sm" name="RoundsDone"
-                           value="@(i.RoundsDone?.ToString() ?? "")"
-                           data-orig="@(i.RoundsDone?.ToString() ?? "")" />
-                </div>
-                <div class="col-6 col-md-2">
-                    <label class="form-label form-label-sm">狀態</label>
-                    <select class="form-select form-select-sm" name="Status"
-                            data-orig="@(i.Status ?? "")">
-                        <option value="">（不變更）</option>
-                        <option value="Done" selected="@(i.Status == "Done")">Done</option>
-                        <option value="Skipped" selected="@(i.Status == "Skipped")">Skipped</option>
-                        <option value="Partial" selected="@(i.Status == "Partial")">Partial</option>
-                    </select>
-                </div>
-                <div class="col-12">
-                    <label class="form-label form-label-sm">備註</label>
-                    <input type="text" class="form-control form-control-sm" name="Note"
-                           value="@(i.Note ?? "")"
-                           data-orig="@(i.Note ?? "")" />
-                </div>
+            <div class="col-12 col-md-4">
+                <label class="form-label">獲得點數</label>
+                <input type="number" class="form-control" name="points" min="0" step="1" @(isCompleted ? "disabled" : null) />
             </div>
 
-            <div class="mt-2 d-flex gap-2 align-items-center">
-                <button type="button" class="btn btn-primary btn-sm js-save"
-                        data-session-id="@Model.SessionID"
-                        data-item-id="@i.SessionItemID">
-                        儲存
+            <div class="col-12">
+                <label class="form-label">備註</label>
+                <textarea class="form-control" name="note" rows="2" placeholder="想記錄些什麼？" @(isCompleted ? "disabled" : null)></textarea>
+            </div>
+
+            <div class="col-12 d-flex gap-2">
+                <a class="btn btn-outline-secondary" asp-action="Index">回清單</a>
+                <button type="submit" class="btn btn-danger" @(isCompleted ? "disabled" : null)
+                        onclick="return confirm('確定要結束這場訓練嗎？');">
+                    結束訓練
                 </button>
-
-                <button type="button" class="btn btn-outline-secondary btn-sm js-revert">還原</button>
-
-                <span class="small text-muted" data-field="saved-at"></span>
-                <span class="small ms-2" data-field="dirty-flag" style="display:none;">（有未儲存變更）</span>
             </div>
+        </form>
 
-        </div>
-    }
+        @if (isCompleted)
+        {
+            <div class="text-muted small mt-2">
+                這場訓練已於 @FormatUtc(Model.EndedAt ?? Model.StartedAt) 結束。
+                你仍可於清單或此頁查看內容。
+            </div>
+        }
+    </div>
 </div>
 
-<div class="mt-3 d-flex gap-2">
-    <a asp-action="Index" class="btn btn-outline-secondary">返回列表</a>
-    @* 已有「結束訓練」表單的話，保留 *@
+<!-- 項目列表 -->
+<div class="card">
+    <div class="card-header">訓練步驟</div>
+    <div class="card-body">
+        @if (Model.Items?.Any() == true)
+        {
+            <div class="table-responsive">
+                <table class="table align-middle">
+                    <thead>
+                        <tr>
+                            <th style="width: 60px;">#</th>
+                            <th>影片 / 動作</th>
+                            <th style="width: 110px;">狀態</th>
+                            <th style="width: 90px;">次數</th>
+                            <th style="width: 90px;">重量</th>
+                            <th style="width: 110px;">時長(秒)</th>
+                            <th style="width: 110px;">休息(秒)</th>
+                            <th style="width: 90px;">回合</th>
+                            <th>備註</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var i in Model.Items.OrderBy(x => x.OrderNo))
+                        {
+                            <tr>
+                                <td>@i.OrderNo</td>
+                                <td>@i.VideoTitle</td>
+                                <td>@i.Status</td>
+                                <td>@(i.ActualReps?.ToString() ?? "-")</td>
+                                <td>@(i.ActualWeight?.ToString() ?? "-")</td>
+                                <td>@(i.ActualDurationSec?.ToString() ?? "-")</td>
+                                <td>@(i.ActualRestSec?.ToString() ?? "-")</td>
+                                <td>@(i.RoundsDone?.ToString() ?? "-")</td>
+                                <td>@(string.IsNullOrWhiteSpace(i.Note) ? "-" : i.Note)</td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-muted">沒有步驟項目。</div>
+        }
+    </div>
 </div>
 
 @section Scripts {
-    <style>
-        /* 髒值視覺提示 */
-        .is-dirty {
-            outline: 2px dashed #ffc107;
-            background-color: #fff8e1;
-        }
-    </style>
-
-    <script>
-        (() => {
-          // 取 Anti-Forgery Token
-          const tokenInput = document.querySelector('#af-token-form input[name="__RequestVerificationToken"]');
-          const afToken = tokenInput ? tokenInput.value : null;
-
-          const list = document.getElementById('items-list');
-
-          // 將一列的 dirty 狀態刷新（加上 is-dirty、顯示提示）
-          function refreshDirtyState(row) {
-            const controls = row.querySelectorAll('input[name], select[name]');
-            let hasDirty = false;
-            controls.forEach(el => {
-              const orig = (el.getAttribute('data-orig') ?? '');
-              const now = (el.value ?? '');
-              const changed = (now.trim() !== orig.trim());
-              el.classList.toggle('is-dirty', changed);
-              if (changed) hasDirty = true;
-            });
-            const flag = row.querySelector('[data-field="dirty-flag"]');
-            if (flag) flag.style.display = hasDirty ? '' : 'none';
-          }
-
-          // 初始化：每列先跑一次
-          document.querySelectorAll('#items-list .list-group-item').forEach(row => {
-            refreshDirtyState(row);
-            // 註冊變更事件
-            row.querySelectorAll('input[name], select[name]').forEach(el => {
-              el.addEventListener('input', () => refreshDirtyState(row));
-              el.addEventListener('change', () => refreshDirtyState(row));
-            });
-          });
-
-          // 事件代理
-          list.addEventListener('click', async (e) => {
-            // 還原
-            const revertBtn = e.target.closest('.js-revert');
-            if (revertBtn) {
-              const row = revertBtn.closest('.list-group-item');
-              row.querySelectorAll('input[name], select[name]').forEach(el => {
-                const orig = el.getAttribute('data-orig') ?? '';
-                el.value = orig;
-              });
-              refreshDirtyState(row);
-              return;
-            }
-
-            // 儲存
-            const btn = e.target.closest('.js-save');
-            if (!btn) return;
-
-            const row = btn.closest('.list-group-item');
-            const itemId = btn.dataset.itemId;
-            const sessionId = btn.dataset.sessionId;
-
-            const getVal = (sel) => {
-              const el = row.querySelector(sel);
-              if (!el) return null;
-              const v = el.value?.trim();
-              return v === "" ? null : v;
-            };
-
-            const payload = new URLSearchParams();
-            payload.append('SessionItemID', itemId);
-            payload.append('SessionID', sessionId);
-
-            // 只送有輸入的數值欄位；Note 允許空字串以清空
-            const ActualReps        = getVal('input[name="ActualReps"]');
-            const ActualWeight      = getVal('input[name="ActualWeight"]');
-            const ActualDurationSec = getVal('input[name="ActualDurationSec"]');
-            const ActualRestSec     = getVal('input[name="ActualRestSec"]');
-            const RoundsDone        = getVal('input[name="RoundsDone"]');
-            const Status            = getVal('select[name="Status"]');
-            const NoteEl            = row.querySelector('input[name="Note"]');
-            const Note              = NoteEl ? NoteEl.value : null;
-
-            if (ActualReps !== null)        payload.append('ActualReps', ActualReps);
-            if (ActualWeight !== null)      payload.append('ActualWeight', ActualWeight);
-            if (ActualDurationSec !== null) payload.append('ActualDurationSec', ActualDurationSec);
-            if (ActualRestSec !== null)     payload.append('ActualRestSec', ActualRestSec);
-            if (RoundsDone !== null)        payload.append('RoundsDone', RoundsDone);
-            if (Status !== null)            payload.append('Status', Status);
-            if (Note !== null)              payload.append('Note', Note); // 可能是空字串＝清空
-
-            // UI 狀態
-            const feedback = row.querySelector('[data-field="feedback"]') || { innerText: '', classList: { add(){}, remove(){} } };
-            const savedAt  = row.querySelector('[data-field="saved-at"]');
-            const statusBadge = row.querySelector('[data-field="status"]');
-            const origText = btn.innerText;
-
-            btn.disabled = true; btn.innerText = '儲存中...'; feedback.innerText = '';
-
-            try {
-              const resp = await fetch('@Url.Action("UpdateItemAjax", "TrainingSessions")', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/x-www-form-urlencoded;charset=UTF-8',
-                  'RequestVerificationToken': afToken
-                },
-                body: payload.toString()
-              });
-              const data = await resp.json();
-              if (!resp.ok || !data.ok) throw new Error(data?.error || ('HTTP ' + resp.status));
-
-              // 成功：把現值寫回 data-orig，清除髒值外觀
-              row.querySelectorAll('input[name], select[name]').forEach(el => {
-                el.setAttribute('data-orig', el.value ?? '');
-                el.classList.remove('is-dirty');
-              });
-              const now = new Date();
-              if (savedAt) savedAt.innerText = `已儲存 ${now.toLocaleTimeString()}`;
-              if (statusBadge && data.item?.Status) statusBadge.innerText = data.item.Status;
-              const dirtyFlag = row.querySelector('[data-field="dirty-flag"]');
-              if (dirtyFlag) dirtyFlag.style.display = 'none';
-            } catch (err) {
-              feedback.innerText = (err?.message || '更新失敗');
-              feedback.classList.remove?.('text-success'); feedback.classList.add?.('text-danger');
-            } finally {
-              btn.disabled = false; btn.innerText = origText;
-            }
-          });
-        })();
-    </script>
-
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
 }

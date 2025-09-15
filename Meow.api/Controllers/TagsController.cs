@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using Meow.Api.Data;  // Scaffold 產生的 DbContext 和 Entity 類別所在命名空間
+using Meow.Api.Data;
+using Meow.Shared.Dtos.Tags;  // Scaffold 產生的 DbContext 和 Entity 類別所在命名空間
 
 namespace Meow.Api.Controllers
 {
@@ -15,11 +16,21 @@ namespace Meow.Api.Controllers
             _db = db;
         }
 
+        // GET /api/Tags?keyword=
         [HttpGet]
-        public async Task<IActionResult> GetAll()
+        public async Task<ActionResult<IEnumerable<TagDto>>> Get([FromQuery] string? keyword = null)
         {
-            var tags = await _db.Tags.AsNoTracking().ToListAsync();
-            return Ok(tags);
+            var q = _db.Tags.AsNoTracking();
+            if (!string.IsNullOrWhiteSpace(keyword))
+                q = q.Where(t => t.Name.Contains(keyword));
+
+            var list = await q
+                .OrderBy(t => t.Name)
+                .Select(t => new TagDto(t.TagID, t.Name))
+                .ToListAsync();
+
+            return Ok(list);
         }
     }
+
 }

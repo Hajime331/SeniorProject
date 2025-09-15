@@ -7,7 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Dtos\Avatar\" />
+    <Compile Remove="Dtos\Avatar\**" />
+    <EmbeddedResource Remove="Dtos\Avatar\**" />
+    <None Remove="Dtos\Avatar\**" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Folder Include="Properties\" />
   </ItemGroup>
 

@@ -2,6 +2,8 @@
 using Meow.Shared.Dtos.Analytics;
 using Meow.Shared.Dtos.Common;
 using Meow.Shared.Dtos.TrainingSessions;
+using Meow.Shared.Dtos.TrainingSets;
+using Meow.Shared.Dtos.TrainingVideos;
 using Meow.Web.Models;
 using Microsoft.AspNetCore.WebUtilities;
 using System.Globalization;
@@ -28,9 +30,10 @@ namespace Meow.Web.Services
             return await _http.GetFromJsonAsync<IEnumerable<WeatherDto>>("/weatherforecast") ?? [];
         }
 
-        public async Task<IEnumerable<TagDto>> GetTagsAsync()
+        public async Task<IReadOnlyList<TagDto>> GetTagsAsync()
         {
-            return await _http.GetFromJsonAsync<IEnumerable<TagDto>>("/api/Tags") ?? [];
+            return await _http.GetFromJsonAsync<List<TagDto>>("api/Tags")
+                   ?? new List<TagDto>();
         }
 
         // 供「前台 Members 清單頁」使用
@@ -330,5 +333,45 @@ namespace Meow.Web.Services
             return await resp.Content.ReadFromJsonAsync<TrainingSessionDetailDto>();
         }
 
+
+        public async Task<IReadOnlyList<TrainingSetListDto>> GetTrainingSetsAsync(string? keyword = null, string? status = "Active")
+        {
+            var qs = new List<string>();
+            if (!string.IsNullOrWhiteSpace(keyword)) qs.Add("keyword=" + Uri.EscapeDataString(keyword));
+            if (!string.IsNullOrWhiteSpace(status)) qs.Add("status=" + Uri.EscapeDataString(status));
+
+            var url = "api/TrainingSets" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
+            return await _http.GetFromJsonAsync<List<TrainingSetListDto>>(url) ?? new List<TrainingSetListDto>();
+        }
+
+
+        public async Task<IReadOnlyList<TrainingVideoDto>> GetTrainingVideosAsync(
+        string? keyword = null,
+        string? status = null,
+        IEnumerable<Guid>? tagIds = null)
+        {
+            var qs = new List<string>();
+            if (!string.IsNullOrWhiteSpace(keyword)) qs.Add("keyword=" + Uri.EscapeDataString(keyword));
+            if (!string.IsNullOrWhiteSpace(status)) qs.Add("status=" + Uri.EscapeDataString(status));
+
+            if (tagIds is not null)
+            {
+                var tokens = tagIds.Where(g => g != Guid.Empty)
+                                   .Select(g => Uri.EscapeDataString(g.ToString()))
+                                   .ToArray();
+                if (tokens.Length > 0)
+                    qs.Add("tagIds=" + string.Join(",", tokens));
+            }
+
+            var url = "api/TrainingVideos" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
+            return await _http.GetFromJsonAsync<List<TrainingVideoDto>>(url) ?? new List<TrainingVideoDto>();
+        }
+
+        public async Task UpdateTrainingVideoStatusAsync(Guid videoId, string status)
+        {
+            var payload = new { Status = status };
+            var resp = await _http.PutAsJsonAsync($"api/TrainingVideos/{videoId}/status", payload);
+            resp.EnsureSuccessStatusCode();
+        }
     }
 }

@@ -2,6 +2,8 @@
 using Meow.Shared.Dtos.Analytics;
 using Meow.Shared.Dtos.Common;
 using Meow.Shared.Dtos.TrainingSessions;
+using Meow.Shared.Dtos.TrainingSets;
+using Meow.Shared.Dtos.TrainingVideos;
 using Meow.Web.Models;
 using static Meow.Web.Services.BackendApi;
 
@@ -17,7 +19,8 @@ namespace Meow.Web.Services
         Task<IEnumerable<WeatherDto>> GetWeatherAsync();
 
         // Tag API
-        Task<IEnumerable<TagDto>> GetTagsAsync();
+        Task<IReadOnlyList<TagDto>> GetTagsAsync();
+
 
 
         // 供「前台 Members 清單頁」使用
@@ -106,5 +109,15 @@ namespace Meow.Web.Services
         Task<TrainingSessionDetailDto?> GetTrainingSessionAsync(Guid sessionId);
 
 
+        Task<IReadOnlyList<TrainingSetListDto>> GetTrainingSetsAsync(string? keyword = null, string? status = "Active");
+
+
+        // 新增（清單 + 更新狀態）
+        Task<IReadOnlyList<TrainingVideoDto>> GetTrainingVideosAsync(
+            string? keyword = null,
+            string? status = null,
+            IEnumerable<Guid>? tagIds = null);
+
+        Task UpdateTrainingVideoStatusAsync(Guid videoId, string status);
     }
 }

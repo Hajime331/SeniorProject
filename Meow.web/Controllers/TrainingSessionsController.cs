@@ -1,6 +1,5 @@
 ﻿using Meow.Shared.Dtos.TrainingSessions;
 using Meow.Web.Services;
-using Meow.Web.ViewModels.TrainingSessions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Security.Claims;

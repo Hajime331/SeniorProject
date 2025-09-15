@@ -1,93 +1,134 @@
-﻿@model Meow.Web.ViewModels.TrainingSessions.TrainingSessionListVm
-@using System.Globalization
+﻿@model TrainingSessionIndexVm
 @{
     ViewData["Title"] = "我的訓練紀錄";
-    int totalPages = (int)Math.Ceiling((double)Model.TotalCount / Model.PageSize);
-    string fmt(DateTime dt) => dt.ToLocalTime().ToString("yyyy/MM/dd HH:mm", CultureInfo.InvariantCulture);
-    string dateVal(DateTime? d) => d.HasValue ? d.Value.ToString("yyyy-MM-dd") : "";
 }
-<h2 class="mb-3">@ViewData["Title"]</h2>
 
-<!-- 供 AJAX 讀取 Anti-forgery token 的隱藏表單 -->
-<form id="__af" method="post">@Html.AntiForgeryToken()</form>
+<h2 class="mb-3">我的訓練紀錄</h2>
 
-<form method="get" class="row g-2 mb-3">
-    <div class="col-auto">
-        <label class="form-label">From</label>
-        <input type="date" name="from" value="@dateVal(Model.From)" class="form-control" />
+<form method="get" class="mb-4">
+    <div class="row g-2 align-items-end">
+        <div class="col-auto">
+            <label class="form-label">起</label>
+            <input type="date" name="from" class="form-control" value="@(Model.From?.ToString("yyyy-MM-dd"))" />
+        </div>
+        <div class="col-auto">
+            <label class="form-label">迄</label>
+            <input type="date" name="to" class="form-control" value="@(Model.To?.ToString("yyyy-MM-dd"))" />
+        </div>
     </div>
-    <div class="col-auto">
-        <label class="form-label">To</label>
-        <input type="date" name="to" value="@dateVal(Model.To)" class="form-control" />
+
+    <div class="mt-3">
+        <div class="form-label">標籤（可多選）</div>
+        <div class="row row-cols-2 row-cols-md-4 g-2">
+            @foreach (var t in Model.AllTags)
+            {
+                var checkedAttr = Model.SelectedTagIds.Contains(t.TagID.ToString())
+                                  || Model.SelectedTagIds.Contains(t.Name)
+                                  ? "checked" : null;
+                <div class="col">
+                    <div class="form-check">
+                        <input class="form-check-input"
+                               type="checkbox"
+                               name="tagIds"
+                               value="@t.TagID"
+                               id="tag_@t.TagID"
+                               @(checkedAttr) />
+                        <label class="form-check-label" for="tag_@t.TagID">@t.Name</label>
+                    </div>
+                </div>
+            }
+        </div>
     </div>
-    <div class="col-auto align-self-end">
-        <button type="submit" class="btn btn-primary">篩選</button>
-    </div>
+
+    <button type="submit" class="btn btn-primary mt-3">篩選</button>
 </form>
 
-@if (Model.Items.Count == 0)
+@if (Model.Result is not null && Model.Result.Items.Any())
 {
-    <div class="alert alert-secondary">目前沒有符合條件的訓練紀錄。</div>
-}
-else
-{
-    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
-        @foreach (var s in Model.Items)
+    <div class="d-flex justify-content-between align-items-center mb-2">
+        <div class="text-muted">共 @Model.Result.TotalCount 筆</div>
+        <div>
+            @{
+                var totalPages = (int)Math.Ceiling((double)Model.Result.TotalCount / Model.Result.PageSize);
+                var prevDisabled = Model.Result.Page <= 1 ? "disabled" : "";
+                var nextDisabled = Model.Result.Page >= totalPages ? "disabled" : "";
+            }
+            <a class="btn btn-outline-secondary btn-sm @prevDisabled"
+               href="@Url.Action("Index", new {
+                    from = Model.From?.ToString("yyyy-MM-dd"),
+                    to = Model.To?.ToString("yyyy-MM-dd"),
+                    page = Model.Result.Page - 1,
+                    pageSize = Model.Result.PageSize,
+                    tagIds = Model.SelectedTagIds
+               })">上一頁</a>
+
+            <span class="mx-2 small">第 @Model.Result.Page / @Math.Max(1, (int)Math.Ceiling((double)Model.Result.TotalCount / Model.Result.PageSize)) 頁</span>
+
+            <a class="btn btn-outline-secondary btn-sm @nextDisabled"
+               href="@Url.Action("Index", new {
+                    from = Model.From?.ToString("yyyy-MM-dd"),
+                    to = Model.To?.ToString("yyyy-MM-dd"),
+                    page = Model.Result.Page + 1,
+                    pageSize = Model.Result.PageSize,
+                    tagIds = Model.SelectedTagIds
+               })">下一頁</a>
+        </div>
+    </div>
+
+    <div class="list-group">
+        @foreach (var s in Model.Result.Items)
         {
-            var status = s.CompletedFlag ? "完成" : "進行中";
-            var durationMin = s.EndedAt.HasValue
-            ? (int)Math.Max(0, (s.EndedAt.Value - s.StartedAt).TotalMinutes)
-            : (int)Math.Max(0, (DateTime.UtcNow - s.StartedAt).TotalMinutes);
-
-            <div class="col" id="card-@s.SessionID">
-                <div class="card h-100 shadow-sm">
-                    <div class="card-body">
-                        <div class="d-flex justify-content-between align-items-start mb-1">
-                            <h5 class="card-title mb-0">@s.SetName</h5>
-                            <span id="badge-@s.SessionID"
-                                  class="badge @(s.CompletedFlag ? "bg-success" : "bg-warning text-dark")">
-                                @status
-                            </span>
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between">
+                    <div class="me-3">
+                        <div>
+                            <strong>@s.StartedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</strong>
+                            <span class="text-muted">— @s.SetName</span>
                         </div>
 
-                        <div class="small text-muted mb-2" id="time-@s.SessionID">
-                            開始：@fmt(s.StartedAt)
-                            @if (s.EndedAt.HasValue)
-                            {
-                                <span>｜結束：@fmt(s.EndedAt.Value)</span>
-                            }
-                        </div>
-
-                        <ul class="list-unstyled mb-2">
-                            <li id="duration-@s.SessionID">時長：約 @durationMin 分鐘</li>
-                            @if (s.CaloriesBurned.HasValue)
-                            {
-                                <li>熱量：@s.CaloriesBurned kcal</li>
-                            }
-                            @if (s.PointsAwarded.HasValue)
-                            {
-                                <li>罐頭點數：@s.PointsAwarded</li>
-                            }
-                        </ul>
+                        @* 若 DTO 已加 TagNames，顯示徽章 *@
+                        @if (s.TagNames?.Any() == true)
+                        {
+                            <div class="small mt-1">
+                                @foreach (var name in s.TagNames)
+                                {
+                                    <span class="badge text-bg-secondary me-1">@name</span>
+                                }
+                            </div>
+                        }
 
                         @if (!string.IsNullOrWhiteSpace(s.Notes))
                         {
-                            <p class="card-text">@s.Notes</p>
+                            <div class="small text-muted mt-1">備註：@s.Notes</div>
                         }
                     </div>
 
-                    <div class="card-footer bg-transparent border-0 d-flex gap-2">
-                        <a class="btn btn-outline-primary btn-sm"
-                           asp-controller="TrainingSessions" asp-action="Detail" asp-route-id="@s.SessionID">查看</a>
-
-                        @* 只在「進行中」顯示 結束 *@
-                        @if (!s.CompletedFlag)
+                    <div class="text-end">
+                        @if (s.CompletedFlag)
                         {
-                            <button type="button"
-                                    class="btn btn-sm btn-primary js-complete"
-                                    data-id="@s.SessionID">
-                                結束
-                            </button>
+                            <span class="badge text-bg-success">已完成</span>
+                            <div class="mt-2">
+                                <a class="btn btn-sm btn-outline-primary"
+                                   asp-action="Detail" asp-route-id="@s.SessionID">查看</a>
+                            </div>
+                        }
+                        else
+                        {
+                            <span class="badge text-bg-warning text-dark">進行中</span>
+                            <div class="mt-2">
+                                <a class="btn btn-sm btn-outline-primary me-2"
+                                   asp-action="Detail" asp-route-id="@s.SessionID">查看</a>
+
+                                @* 結束訓練（非 AJAX）— 直接打到 Web Controller 的 Complete 動作 *@
+                                <form asp-action="Complete" method="post" class="d-inline"
+                                      onsubmit="return confirm('確定要結束這場訓練嗎？');">
+                                    @Html.AntiForgeryToken()
+                                    <input type="hidden" name="id" value="@s.SessionID" />
+                                    <button type="submit" class="btn btn-sm btn-danger">
+                                        結束訓練
+                                    </button>
+                                </form>
+                            </div>
                         }
                     </div>
                 </div>
@@ -95,82 +136,36 @@ else
         }
     </div>
 
-    <nav class="mt-4" aria-label="pagination">
-        <!-- 你原本的分頁區塊保留 -->
-        ...
-    </nav>
+    <div class="d-flex justify-content-between align-items-center mt-3">
+        <div class="text-muted small">
+            每頁 @Model.Result.PageSize 筆
+        </div>
+        <div>
+            <a class="btn btn-outline-secondary btn-sm @((Model.Result.Page <= 1) ? "disabled" : "")"
+               href="@Url.Action("Index", new {
+                    from = Model.From?.ToString("yyyy-MM-dd"),
+                    to = Model.To?.ToString("yyyy-MM-dd"),
+                    page = Model.Result.Page - 1,
+                    pageSize = Model.Result.PageSize,
+                    tagIds = Model.SelectedTagIds
+               })">上一頁</a>
+
+            <a class="btn btn-outline-secondary btn-sm @(((Model.Result.Page * Model.Result.PageSize) >= Model.Result.TotalCount) ? "disabled" : "")"
+               href="@Url.Action("Index", new {
+                    from = Model.From?.ToString("yyyy-MM-dd"),
+                    to = Model.To?.ToString("yyyy-MM-dd"),
+                    page = Model.Result.Page + 1,
+                    pageSize = Model.Result.PageSize,
+                    tagIds = Model.SelectedTagIds
+               })">下一頁</a>
+        </div>
+    </div>
+}
+else
+{
+    <div class="text-muted">沒有符合條件的紀錄。</div>
 }
 
 @section Scripts {
-    <script>
-        (function () {
-          // 讀取 Anti-forgery token
-          const token = document.querySelector('#__af input[name="__RequestVerificationToken"]').value;
-
-          // 事件委派：監聽所有 .js-complete 按鈕
-          document.addEventListener('click', async (e) => {
-            const btn = e.target.closest('.js-complete');
-            if (!btn) return;
-
-            const id = btn.dataset.id;
-            if (!id) return;
-
-            if (!confirm('確定要結束這次訓練？')) return;
-
-            btn.disabled = true;
-
-            try {
-              const resp = await fetch('@Url.Action("CompleteAjax", "TrainingSessions")', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8',
-                  'RequestVerificationToken': token
-                },
-                body: new URLSearchParams({ id })
-              });
-              const data = await resp.json();
-
-              if (!resp.ok || !data.ok) {
-                alert('結束失敗：' + (data.message || resp.statusText));
-                btn.disabled = false;
-                return;
-              }
-
-              // UI 更新：徽章、時長、移除按鈕
-              const sid = data.sessionId;
-              const badge = document.getElementById('badge-' + sid);
-              const time = document.getElementById('time-' + sid);
-              const duration = document.getElementById('duration-' + sid);
-
-              if (badge) {
-                badge.className = 'badge bg-success';
-                badge.textContent = '完成';
-              }
-              if (time && data.endedAt) {
-                const dt = new Date(data.endedAt); // ISO → 本地
-                const pad = n => n.toString().padStart(2,'0');
-                const s = `結束：${dt.getFullYear()}/${pad(dt.getMonth()+1)}/${pad(dt.getDate())} ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
-                // 追加顯示（若原本就有，這段可選擇覆寫）
-                const sep = document.createElement('span');
-                sep.textContent = '｜';
-                const end = document.createElement('span');
-                end.textContent = s;
-                time.appendChild(sep);
-                time.appendChild(end);
-              }
-              if (duration && Number.isInteger(data.minutes)) {
-                duration.textContent = `時長：約 ${data.minutes} 分鐘`;
-              }
-
-              // 移除按鈕
-              btn.remove();
-
-            } catch (err) {
-              console.error(err);
-              alert('結束失敗：' + err);
-              btn.disabled = false;
-            }
-          });
-        })();
-    </script>
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
 }
