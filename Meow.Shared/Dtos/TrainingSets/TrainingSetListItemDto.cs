@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Meow.Shared.Dtos.TrainingSets
 {
-    public record TrainingSetListDto(
+    public record TrainingSetListItemDto(
         Guid SetID,
         string Name,
         string BodyPart,

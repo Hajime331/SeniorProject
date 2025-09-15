@@ -12,7 +12,7 @@ public class TrainingSetsController : ControllerBase
 
     // GET /api/TrainingSets?keyword=&status=Active
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<TrainingSetListDto>>> Get([FromQuery] string? keyword, [FromQuery] string? status)
+    public async Task<ActionResult<IEnumerable<TrainingSetListItemDto>>> Get([FromQuery] string? keyword, [FromQuery] string? status)
     {
         var q = _db.TrainingSets.AsNoTracking();
 
@@ -23,7 +23,7 @@ public class TrainingSetsController : ControllerBase
 
         var list = await q
             .OrderByDescending(s => s.CreatedAt)
-            .Select(s => new TrainingSetListDto(
+            .Select(s => new TrainingSetListItemDto(
                 s.SetID, s.Name, s.BodyPart, s.Equipment, s.Difficulty, s.EstimatedDurationSec,
                 _db.SetTagMaps.Where(m => m.SetID == s.SetID).Select(m => m.TagID).ToList(),
                 _db.TrainingSetItems.Count(i => i.SetID == s.SetID)

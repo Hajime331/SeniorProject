@@ -20,11 +20,11 @@ namespace Meow.Api.Controllers
 
         // 查全部會員（不含密碼雜湊）
         [HttpGet] // GET /api/Members
-        public async Task<ActionResult<IEnumerable<MemberListDto>>> GetAll()
+        public async Task<ActionResult<IEnumerable<MemberListItemDto>>> GetAll()
         {
             var data = await _db.Members
                 .AsNoTracking() // 只讀，省資源，此刻還不修改資料
-                .Select(m => new MemberListDto  // 挑選以 DTO 形狀輸出，避免外洩欄位
+                .Select(m => new MemberListItemDto  // 挑選以 DTO 形狀輸出，避免外洩欄位
                 {
                     MemberID = m.MemberID,
                     Email = m.Email,
@@ -42,12 +42,12 @@ namespace Meow.Api.Controllers
         // 查單一會員（不含密碼雜湊）
         // {id:guid} 代表路由參數必須是 Guid 格式
         [HttpGet("{id:guid}")]
-        public async Task<ActionResult<MemberListDto>> GetOne(Guid id)
+        public async Task<ActionResult<MemberListItemDto>> GetOne(Guid id)
         {
             var m = await _db.Members
                 .AsNoTracking()
                 .Where(x => x.MemberID == id)
-                .Select(x => new MemberListDto
+                .Select(x => new MemberListItemDto
                 {
                     MemberID = x.MemberID,
                     Email = x.Email,
@@ -64,7 +64,7 @@ namespace Meow.Api.Controllers
 
         // 註冊新會員
         [HttpPost]
-        [ProducesResponseType(typeof(MemberListDto), StatusCodes.Status201Created)]
+        [ProducesResponseType(typeof(MemberListItemDto), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status409Conflict)]
 
@@ -106,7 +106,7 @@ namespace Meow.Api.Controllers
             await _db.SaveChangesAsync();
 
             // 6. 組回傳 DTO（不回密碼欄位）
-            var dto = new MemberListDto
+            var dto = new MemberListItemDto
             {
                 MemberID = member.MemberID,
                 Email = member.Email,
@@ -124,7 +124,7 @@ namespace Meow.Api.Controllers
         [HttpPost("login")]
         [Consumes("application/json")]
         [Produces("application/json")]
-        [ProducesResponseType(typeof(MemberListDto), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(MemberListItemDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status401Unauthorized)]
         public async Task<IActionResult> Login([FromBody] MemberLoginDto input)
         {
@@ -142,7 +142,7 @@ namespace Meow.Api.Controllers
             await _db.SaveChangesAsync();
 
             // 回傳給前端可用的安全欄位
-            var dto = new MemberListDto
+            var dto = new MemberListItemDto
             {
                 MemberID = m.MemberID,
                 Email = m.Email,
@@ -163,12 +163,12 @@ namespace Meow.Api.Controllers
         }
 
         [HttpGet("recent")]
-        public async Task<IEnumerable<MemberListDto>> Recent([FromQuery] int take = 5)
+        public async Task<IEnumerable<MemberListItemDto>> Recent([FromQuery] int take = 5)
         {
             return await _db.Members.AsNoTracking()
                 .OrderByDescending(m => m.CreatedAt)
                 .Take(take)
-                .Select(m => new MemberListDto
+                .Select(m => new MemberListItemDto
                 {
                     MemberID = m.MemberID,
                     Email = m.Email,

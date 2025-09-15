@@ -1,6 +1,6 @@
 ﻿namespace Meow.Shared.Dtos.Accounts;
 
-public class MemberListDto
+public class MemberListItemDto
 {
     public Guid MemberID { get; set; }
     public string Email { get; set; } = default!;

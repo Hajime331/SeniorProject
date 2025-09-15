@@ -6,6 +6,6 @@ namespace Meow.Web.ViewModels.TrainingSets
     public class TrainingSetIndexVm
     {
         public string? Keyword { get; set; }
-        public IReadOnlyList<TrainingSetListDto> Sets { get; set; } = new List<TrainingSetListDto>();
+        public IReadOnlyList<TrainingSetListItemDto> Sets { get; set; } = new List<TrainingSetListItemDto>();
     }
 }

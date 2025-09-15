@@ -334,14 +334,14 @@ namespace Meow.Web.Services
         }
 
 
-        public async Task<IReadOnlyList<TrainingSetListDto>> GetTrainingSetsAsync(string? keyword = null, string? status = "Active")
+        public async Task<IReadOnlyList<TrainingSetListItemDto>> GetTrainingSetsAsync(string? keyword = null, string? status = "Active")
         {
             var qs = new List<string>();
             if (!string.IsNullOrWhiteSpace(keyword)) qs.Add("keyword=" + Uri.EscapeDataString(keyword));
             if (!string.IsNullOrWhiteSpace(status)) qs.Add("status=" + Uri.EscapeDataString(status));
 
             var url = "api/TrainingSets" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
-            return await _http.GetFromJsonAsync<List<TrainingSetListDto>>(url) ?? new List<TrainingSetListDto>();
+            return await _http.GetFromJsonAsync<List<TrainingSetListItemDto>>(url) ?? new List<TrainingSetListItemDto>();
         }
 
 
