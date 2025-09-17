@@ -1,0 +1,10 @@
+﻿== EXPECTED MISSING ==
+  - OptionDto
+  - TrainingVideoCreateDto
+  - TrainingSetCreateDto
+  - TrainingSetListItemDto
+  - TrainingSetItemCreateDto
+  - TrainingSetItemDto
+  - TrainingSessionListItemDto
+
+== LEGACY STILL PRESENT ==
