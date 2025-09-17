@@ -12,7 +12,7 @@ public class TrainingVideosController : ControllerBase
 
     // GET /api/TrainingVideos?keyword=&tagIds=guid,guid&status=Published
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<TrainingVideoDto>>> Get(
+    public async Task<ActionResult<IEnumerable<TrainingVideoListItemDto>>> Get(
         [FromQuery] string? keyword,
         [FromQuery] string? tagIds,
         [FromQuery] string? status)
@@ -50,7 +50,7 @@ public class TrainingVideosController : ControllerBase
 
     // POST /api/TrainingVideos
     [HttpPost]
-    public async Task<ActionResult<TrainingVideoDto>> Create([FromBody] TrainingVideoCreateDto dto)
+    public async Task<ActionResult<TrainingVideoListItemDto>> Create([FromBody] TrainingVideoCreateDto dto)
     {
         if (string.IsNullOrWhiteSpace(dto.Title) || string.IsNullOrWhiteSpace(dto.Url))
             return BadRequest("Title/Url required.");

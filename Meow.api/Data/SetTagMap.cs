@@ -6,24 +6,24 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Meow.Api.Data;
 
-[PrimaryKey("SetID", "TagID")]
+[PrimaryKey("SetId", "TagId")]
 [Table("SetTagMap")]
 public partial class SetTagMap
 {
     [Key]
-    public Guid SetID { get; set; }
+    public Guid SetId { get; set; }
 
     [Key]
-    public Guid TagID { get; set; }
+    public Guid TagId { get; set; }
 
     [Precision(0)]
     public DateTime MappedAt { get; set; }
 
-    [ForeignKey("SetID")]
+    [ForeignKey("SetId")]
     [InverseProperty("SetTagMaps")]
     public virtual TrainingSet Set { get; set; } = null!;
 
-    [ForeignKey("TagID")]
+    [ForeignKey("TagId")]
     [InverseProperty("SetTagMaps")]
     public virtual Tag Tag { get; set; } = null!;
 }

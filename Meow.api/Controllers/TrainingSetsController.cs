@@ -24,9 +24,9 @@ public class TrainingSetsController : ControllerBase
         var list = await q
             .OrderByDescending(s => s.CreatedAt)
             .Select(s => new TrainingSetListItemDto(
-                s.SetID, s.Name, s.BodyPart, s.Equipment, s.Difficulty, s.EstimatedDurationSec,
-                _db.SetTagMaps.Where(m => m.SetID == s.SetID).Select(m => m.TagID).ToList(),
-                _db.TrainingSetItems.Count(i => i.SetID == s.SetID)
+                s.SetId, s.Name, s.BodyPart, s.Equipment, s.Difficulty, s.EstimatedDurationSec,
+                _db.SetTagMaps.Where(m => m.SetId == s.SetId).Select(m => m.TagId).ToList(),
+                _db.TrainingSetItems.Count(i => i.SetId == s.SetId)
             ))
             .ToListAsync();
 
@@ -42,15 +42,13 @@ public class TrainingSetsController : ControllerBase
 
         var set = new TrainingSet
         {
-            SetID = Guid.NewGuid(),
+            SetId = Guid.NewGuid(),
             Name = dto.Name!,
             BodyPart = dto.BodyPart ?? "全身",
             Equipment = dto.Equipment ?? "無器材",
             Difficulty = dto.Difficulty,
             EstimatedDurationSec = dto.EstimatedDurationSec,
-            IsCustom = dto.IsCustom,
-            OwnerMemberID = dto.OwnerMemberID,
-            Status = dto.Status ?? "Active"
+            IsCustom = true, OwnerMemberId = User.GetMemberId(), Status = "Active"
         };
 
         _db.TrainingSets.Add(set);
@@ -61,9 +59,9 @@ public class TrainingSetsController : ControllerBase
         {
             _db.TrainingSetItems.Add(new TrainingSetItem
             {
-                SetItemID = Guid.NewGuid(),
-                SetID = set.SetID,
-                VideoID = it.VideoID,
+                SetItemId = Guid.NewGuid(),
+                SetId = set.SetId,
+                VideoId = it.VideoId,
                 OrderNo = it.OrderNo ?? order++,
                 TargetReps = it.TargetReps,
                 RestSec = it.RestSec,
@@ -75,36 +73,47 @@ public class TrainingSetsController : ControllerBase
         if (dto.TagIds is not null)
         {
             foreach (var tid in dto.TagIds.Distinct())
-                _db.SetTagMaps.Add(new SetTagMap { SetID = set.SetID, TagID = tid });
+                _db.SetTagMaps.Add(new SetTagMap { SetId = set.SetId, TagId = tid });
         }
 
         await _db.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(Get), new { id = set.SetID }, await ProjectDetail(set.SetID));
+        return CreatedAtAction(nameof(GetById), new { id = set.SetId }, await ProjectDetail(set.SetId));
     }
 
     private async Task<TrainingSetDetailDto> ProjectDetail(Guid id)
     {
         return await _db.TrainingSets.AsNoTracking()
-            .Where(s => s.SetID == id)
+            .Where(s => s.SetId == id)
             .Select(s => new TrainingSetDetailDto
             {
-                SetID = s.SetID,
+                SetID = s.SetId,
                 Name = s.Name,
                 BodyPart = s.BodyPart,
                 Equipment = s.Equipment,
                 Difficulty = s.Difficulty,
                 EstimatedDurationSec = s.EstimatedDurationSec,
                 IsCustom = s.IsCustom,
-                OwnerMemberID = s.OwnerMemberID,
+                OwnerMemberID = s.OwnerMemberId,
                 Status = s.Status,
-                TagIds = _db.SetTagMaps.Where(m => m.SetID == s.SetID).Select(m => m.TagID).ToList(),
+                TagIds = _db.SetTagMaps.Where(m => m.SetId == s.SetId).Select(m => m.TagId).ToList(),
                 Items = _db.TrainingSetItems
-                    .Where(i => i.SetID == s.SetID)
+                    .Where(i => i.SetId == s.SetId)
                     .OrderBy(i => i.OrderNo)
-                    .Select(i => new TrainingSetItemDto(i.SetItemID, i.VideoID, i.OrderNo, i.TargetReps, i.RestSec, i.Rounds))
+                    .Select(i => new TrainingSetItemDto(i.SetItemId, i.VideoId, i.OrderNo, i.TargetReps, i.RestSec, i.Rounds))
                     .ToList()
             })
             .FirstAsync();
+    }
+
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<TrainingSetDetailDto>> GetById(Guid id)
+    {
+        // 直接重用你的 ProjectDetail(id)
+        var exists = await _db.TrainingSets.AsNoTracking().AnyAsync(s => s.SetId == id);
+        if (!exists) return NotFound();
+
+        var dto = await ProjectDetail(id);
+        return Ok(dto);
     }
 }

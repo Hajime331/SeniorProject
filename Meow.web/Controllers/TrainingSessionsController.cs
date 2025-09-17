@@ -30,7 +30,7 @@ public class TrainingSessionsController : Controller
             From = from,
             To = to,
             SelectedTagIds = (tagIds ?? new List<string>()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList(),
-            AllTags = tags.Select(t => (t.TagID, t.Name, (string?)null)).ToList()
+            AllTags = tags.Select(t => (t.TagId, t.Name, (string?)null)).ToList()
         };
 
         vm.Result = await _api.GetTrainingSessionsAsync(memberId, from, to, page, pageSize, vm.SelectedTagIds);

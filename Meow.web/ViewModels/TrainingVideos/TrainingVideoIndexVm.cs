@@ -18,6 +18,6 @@ namespace Meow.Web.ViewModels.TrainingVideos
         public IReadOnlyList<TagDto> AllTags { get; set; } = Array.Empty<TagDto>();
 
         // 清單結果
-        public IReadOnlyList<TrainingVideoDto> Videos { get; set; } = Array.Empty<TrainingVideoDto>();
+        public IReadOnlyList<TrainingVideoListItemDto> Videos { get; set; } = Array.Empty<TrainingVideoListItemDto>();
     }
 }

@@ -1,6 +1,7 @@
 ﻿using Meow.Shared.Dtos.Accounts;
 using Meow.Shared.Dtos.Analytics;
 using Meow.Shared.Dtos.Common;
+using Meow.Shared.Dtos.Tags;
 using Meow.Shared.Dtos.TrainingSessions;
 using Meow.Shared.Dtos.TrainingSets;
 using Meow.Shared.Dtos.Videos;
@@ -213,14 +214,7 @@ namespace Meow.Web.Services
             return resp?.Items ?? new();
         }
 
-        // 你的 PagedResult 若不在 Shared，就在此檔案補一個相容的小型 record
-        public record PagedResult<T>(List<T> Items, int TotalCount, int Page, int PageSize)
-        {
-            public static implicit operator PagedResult<T>(PagedResultDto<TrainingSessionListItemDto> v)
-            {
-                throw new NotImplementedException();
-            }
-        }
+        
 
         public async Task<IReadOnlyList<PopularTrainingSetDto>> GetPopularTrainingSetsAsync(
     DateTime? start = null, DateTime? end = null, int take = 10)
@@ -345,7 +339,7 @@ namespace Meow.Web.Services
         }
 
 
-        public async Task<IReadOnlyList<TrainingVideoDto>> GetTrainingVideosAsync(
+        public async Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(
         string? keyword = null,
         string? status = null,
         IEnumerable<Guid>? tagIds = null)
@@ -364,7 +358,7 @@ namespace Meow.Web.Services
             }
 
             var url = "api/TrainingVideos" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
-            return await _http.GetFromJsonAsync<List<TrainingVideoDto>>(url) ?? new List<TrainingVideoDto>();
+            return await _http.GetFromJsonAsync<List<TrainingVideoListItemDto>>(url) ?? new List<TrainingVideoListItemDto>();
         }
 
         public async Task UpdateTrainingVideoStatusAsync(Guid videoId, string status)

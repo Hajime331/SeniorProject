@@ -1,6 +1,7 @@
 ﻿using Meow.Shared.Dtos.Accounts;
 using Meow.Shared.Dtos.Analytics;
 using Meow.Shared.Dtos.Common;
+using Meow.Shared.Dtos.Tags;
 using Meow.Shared.Dtos.TrainingSessions;
 using Meow.Shared.Dtos.TrainingSets;
 using Meow.Shared.Dtos.Videos;
@@ -11,7 +12,6 @@ namespace Meow.Web.Services
 {
     // DTO 定義
     public record WeatherDto(DateOnly Date, int TemperatureC, string? Summary);
-    public record TagDto(Guid TagID, string Name);
 
     public interface IBackendApi
     {
@@ -113,7 +113,7 @@ namespace Meow.Web.Services
 
 
         // 新增（清單 + 更新狀態）
-        Task<IReadOnlyList<TrainingVideoDto>> GetTrainingVideosAsync(
+        Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(
             string? keyword = null,
             string? status = null,
             IEnumerable<Guid>? tagIds = null);

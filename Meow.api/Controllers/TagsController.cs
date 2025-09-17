@@ -26,8 +26,14 @@ namespace Meow.Api.Controllers
 
             var list = await q
                 .OrderBy(t => t.Name)
-                .Select(t => new TagDto(t.TagID, t.Name))
+                .Select(t => new TagDto
+                {
+                    TagId = t.TagID,
+                    Name = t.Name,
+                    Category = t.Category
+                })
                 .ToListAsync();
+
 
             return Ok(list);
         }

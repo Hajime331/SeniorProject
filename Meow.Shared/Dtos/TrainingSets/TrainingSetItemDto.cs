@@ -3,8 +3,8 @@
 namespace Meow.Shared.Dtos.TrainingSets
 {
     public record TrainingSetItemDto(
-        Guid SetItemID,
-        Guid VideoID,
+        Guid SetItemId,
+        Guid VideoId,
         int OrderNo,
         int? TargetReps,
         int? RestSec,

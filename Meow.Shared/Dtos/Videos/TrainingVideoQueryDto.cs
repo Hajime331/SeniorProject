@@ -1,6 +1,7 @@
-﻿using Meow.Shared.Dtos.Common;
+﻿using System;
+using Meow.Shared.Dtos.Common;
 
-namespace Meow.Shared.DTOs.Videos
+namespace Meow.Shared.Dtos.Videos
 {
     public class TrainingVideoQueryDto : PagingQuery
     {
