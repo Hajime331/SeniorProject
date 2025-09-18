@@ -1,9 +1,9 @@
-﻿@model IEnumerable<Meow.Web.Services.TagDto>
+﻿@model IEnumerable<Meow.Shared.Dtos.Tags.TagDto>
 
 <h2>Tags from API</h2>
 <ul>
-    @foreach (var t in Model)
-    {
-        <li>@t.TagID - @t.Name</li>
-    }
+@foreach (var t in Model)
+{
+    <li>@t.TagId - @t.Name</li>  <!-- 注意：TagId -->
+}
 </ul>

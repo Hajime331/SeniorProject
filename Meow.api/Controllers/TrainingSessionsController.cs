@@ -60,7 +60,7 @@ public class TrainingSessionsController : ControllerBase
         // 2) Tag 篩選（OR 邏輯）
         if (guidSet.Count > 0)
         {
-            q = q.Where(s => _db.SetTagMaps.Any(m => m.SetID == s.SetID && guidSet.Contains(m.TagID)));
+            q = q.Where(s => _db.SetTagMaps.Any(m => m.SetId == s.SetID && guidSet.Contains(m.TagId)));
         }
 
         var total = await q.CountAsync();
@@ -81,7 +81,7 @@ public class TrainingSessionsController : ControllerBase
             )
             {
                 TagNames = _db.SetTagMaps
-                    .Where(m => m.SetID == s.SetID)
+                    .Where(m => m.SetId == s.SetID)
                     .Select(m => m.Tag.Name)
                     .ToList()
             })
@@ -108,9 +108,9 @@ public class TrainingSessionsController : ControllerBase
         // 1) 取出 Set 與其 Items（為了複製成 session items）
         var set = await _db.TrainingSets
             .AsNoTracking()
-            .Include(s => s.TrainingSetItems.OrderBy(i => i.OrderNo))
+            .Include(s => s.TrainingSetItems)
             .ThenInclude(i => i.Video)
-            .FirstOrDefaultAsync(s => s.SetID == dto.SetID);
+            .FirstOrDefaultAsync(s => s.SetId == dto.SetID);
 
         if (set is null) return NotFound("TrainingSet not found.");
 
@@ -119,7 +119,7 @@ public class TrainingSessionsController : ControllerBase
         {
             SessionID = Guid.NewGuid(),
             MemberID = memberId,
-            SetID = set.SetID,
+            SetID = set.SetId,
             StartedAt = DateTime.UtcNow,
             CompletedFlag = false,
             Notes = dto.Notes,
@@ -134,8 +134,8 @@ public class TrainingSessionsController : ControllerBase
             {
                 SessionItemID = Guid.NewGuid(),
                 SessionID = session.SessionID,
-                SetItemID = si.SetItemID,
-                VideoID = si.VideoID,
+                SetItemID = si.SetItemId,
+                VideoID = si.VideoId,
                 OrderNo = si.OrderNo,
                 Status = "Done", // 預設；之後可依 UI 改
                 ActualReps = null,

@@ -52,8 +52,4 @@ public partial class TrainingSet
     [InverseProperty("Set")]
     public virtual ICollection<TrainingSetItem> TrainingSetItems { get; set; } = new List<TrainingSetItem>();
 
-    internal object TrainingSetItems(Func<object, object> value)
-    {
-        throw new NotImplementedException();
-    }
 }

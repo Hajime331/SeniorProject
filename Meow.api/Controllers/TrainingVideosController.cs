@@ -25,7 +25,7 @@ public class TrainingVideosController : ControllerBase
         if (!string.IsNullOrWhiteSpace(status))
             q = q.Where(v => v.Status == status);
 
-        // 解析 tagIds
+        // 解析 tagIds -> Guid set
         HashSet<Guid> tagSet = new();
         if (!string.IsNullOrWhiteSpace(tagIds))
         {
@@ -33,54 +33,88 @@ public class TrainingVideosController : ControllerBase
                 if (Guid.TryParse(s, out var g)) tagSet.Add(g);
         }
         if (tagSet.Count > 0)
-        {
             q = q.Where(v => _db.VideoTagMaps.Any(m => m.VideoID == v.VideoID && tagSet.Contains(m.TagID)));
-        }
 
         var list = await q
             .OrderByDescending(v => v.CreatedAt)
-            .Select(v => new TrainingVideoDto(
-                v.VideoID, v.Title, v.BodyPart, v.Url, v.DurationSec, v.Status,
-                _db.VideoTagMaps.Where(m => m.VideoID == v.VideoID).Select(m => m.TagID).ToList()
-            ))
+            .Select(v => new TrainingVideoListItemDto
+            {
+                VideoId = v.VideoID,
+                Title = v.Title,
+                BodyPart = v.BodyPart,
+                Url = v.Url,
+                DurationSec = v.DurationSec,
+                Status = v.Status,
+                CreatedAt = v.CreatedAt,
+                UpdatedAt = v.UpdatedAt,
+                TagIds = _db.VideoTagMaps.Where(m => m.VideoID == v.VideoID).Select(m => m.TagID).ToList()
+            })
             .ToListAsync();
 
         return Ok(list);
     }
 
+    // GET /api/TrainingVideos/{id}
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<TrainingVideoDetailDto>> GetById(Guid id)
+    {
+        var dto = await _db.TrainingVideos.AsNoTracking()
+            .Where(v => v.VideoID == id)
+            .Select(v => new TrainingVideoDetailDto
+            {
+                VideoId = v.VideoID,
+                Title = v.Title,
+                BodyPart = v.BodyPart,
+                Url = v.Url,
+                DurationSec = v.DurationSec,
+                Status = v.Status,
+                CreatedAt = v.CreatedAt,
+                UpdatedAt = v.UpdatedAt,
+                TagIds = _db.VideoTagMaps.Where(m => m.VideoID == v.VideoID).Select(m => m.TagID).ToList()
+            })
+            .FirstOrDefaultAsync();
+
+        return dto is null ? NotFound() : Ok(dto);
+    }
+
+
     // POST /api/TrainingVideos
     [HttpPost]
-    public async Task<ActionResult<TrainingVideoListItemDto>> Create([FromBody] TrainingVideoCreateDto dto)
+    public async Task<ActionResult<TrainingVideoDetailDto>> Create([FromBody] TrainingVideoCreateDto dto)
     {
-        if (string.IsNullOrWhiteSpace(dto.Title) || string.IsNullOrWhiteSpace(dto.Url))
-            return BadRequest("Title/Url required.");
+        // 基本檢查：Title/Url 已靠 DTO 必填；再做白名單
+        var validStatus = new[] { "Draft", "Published", "Archived" };
+        if (!validStatus.Contains(dto.Status)) return BadRequest("Invalid Status");
 
         var v = new TrainingVideo
         {
             VideoID = Guid.NewGuid(),
             Title = dto.Title,
-            BodyPart = dto.BodyPart ?? "全身",
+            BodyPart = dto.BodyPart,       // 不再 ?? 補值，因為 DTO 已是必填
             Url = dto.Url,
-            DurationSec = dto.DurationSec ?? 0,
-            Status = dto.Status ?? "Draft",
+            DurationSec = dto.DurationSec, // 必填 int
+            Status = dto.Status,
         };
-
         _db.TrainingVideos.Add(v);
 
-        if (dto.TagIds is not null)
-        {
-            foreach (var tid in dto.TagIds.Distinct())
-            {
-                _db.VideoTagMaps.Add(new VideoTagMap { VideoID = v.VideoID, TagID = tid });
-            }
-        }
+        foreach (var tid in dto.TagIds.Distinct())
+            _db.VideoTagMaps.Add(new VideoTagMap { VideoID = v.VideoID, TagID = tid });
 
         await _db.SaveChangesAsync();
 
-        return CreatedAtAction(nameof(Get), new { id = v.VideoID }, new TrainingVideoDto(
-            v.VideoID, v.Title, v.BodyPart, v.Url, v.DurationSec, v.Status,
-            _db.VideoTagMaps.Where(m => m.VideoID == v.VideoID).Select(m => m.TagID).ToList()
-        ));
+        // 建議新增 GET /api/TrainingVideos/{id}
+        return CreatedAtAction(nameof(GetById), new { id = v.VideoID }, new TrainingVideoDetailDto
+        {
+            VideoId = v.VideoID,
+            Title = v.Title,
+            BodyPart = v.BodyPart,
+            Url = v.Url,
+            DurationSec = v.DurationSec,
+            Status = v.Status,
+            CreatedAt = v.CreatedAt,
+            UpdatedAt = v.UpdatedAt,
+            TagIds = await _db.VideoTagMaps.Where(m => m.VideoID == v.VideoID).Select(m => m.TagID).ToListAsync()
+        });
     }
 
     // PUT /api/TrainingVideos/{id}/status

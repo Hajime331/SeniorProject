@@ -7,26 +7,27 @@ using Meow.Web.ViewModels.TrainingVideos;
 public class TrainingVideosController : Controller
 {
     private readonly IBackendApi _api;
-    public TrainingVideosController(IBackendApi api) => _api = api;
+    public TrainingVideosController(IBackendApi api)
+    {
+        _api = api;
+    }
 
     // GET /TrainingVideos
     [HttpGet]
     public async Task<IActionResult> Index(string? keyword, string? status, List<Guid>? tagIds)
     {
-        var tags = await _api.GetTagsAsync();
+        var tags = await _api.GetTagsAsync(); // 直接使用 Shared 的 TagDto
         var videos = await _api.GetTrainingVideosAsync(keyword, status, tagIds);
 
         var vm = new TrainingVideoIndexVm
         {
             Keyword = keyword,
             Status = status,
-            SelectedTagIds = (tagIds ?? new List<Guid>()),
-
-            // 這行是關鍵：把不同命名空間的 TagDto 映射成 Shared 版
-            AllTags = tags.Select(t => new Meow.Shared.Dtos.Tags.TagDto(t.TagID, t.Name)).ToList(),
-
-            Videos = videos
+            SelectedTagIds = tagIds ?? new List<Guid>(),
+            AllTags = tags.ToList(),      // 不再做 TagID/TagId 轉換
+            Videos = videos               // List<TrainingVideoListItemDto>
         };
+
         return View(vm);
     }
 

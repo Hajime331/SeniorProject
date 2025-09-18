@@ -36,7 +36,7 @@
                 <div>
                     <form asp-action="Start" method="post" class="d-inline">
                         @Html.AntiForgeryToken()
-                        <input type="hidden" name="id" value="@s.SetID" />
+                        <input type="hidden" name="id" value="@s.SetId" />
                         <button class="btn btn-sm btn-primary" type="submit">以此課表開始訓練</button>
                     </form>
                 </div>

@@ -24,8 +24,7 @@ namespace Meow.Api.Controllers
             if (!string.IsNullOrWhiteSpace(keyword))
                 q = q.Where(t => t.Name.Contains(keyword));
 
-            var list = await q
-                .OrderBy(t => t.Name)
+            var list = await q.OrderBy(t => t.Name)
                 .Select(t => new TagDto
                 {
                     TagId = t.TagID,

@@ -5,7 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Meow.Shared.DTOs.Videos
+namespace Meow.Shared.Dtos.Videos
 {
     public class TrainingVideoUpdateDto
     {

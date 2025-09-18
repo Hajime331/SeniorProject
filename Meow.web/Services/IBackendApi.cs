@@ -112,7 +112,7 @@ namespace Meow.Web.Services
         Task<IReadOnlyList<TrainingSetListItemDto>> GetTrainingSetsAsync(string? keyword = null, string? status = "Active");
 
 
-        // 新增（清單 + 更新狀態）
+        // TrainingVideos
         Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(
             string? keyword = null,
             string? status = null,
