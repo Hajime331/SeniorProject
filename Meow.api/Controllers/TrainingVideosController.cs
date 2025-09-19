@@ -33,13 +33,13 @@ public class TrainingVideosController : ControllerBase
                 if (Guid.TryParse(s, out var g)) tagSet.Add(g);
         }
         if (tagSet.Count > 0)
-            q = q.Where(v => _db.VideoTagMaps.Any(m => m.VideoID == v.VideoID && tagSet.Contains(m.TagID)));
+            q = q.Where(v => _db.VideoTagMaps.Any(m => m.VideoId == v.VideoId && tagSet.Contains(m.TagID)));
 
         var list = await q
             .OrderByDescending(v => v.CreatedAt)
             .Select(v => new TrainingVideoListItemDto
             {
-                VideoId = v.VideoID,
+                VideoId = v.VideoId,
                 Title = v.Title,
                 BodyPart = v.BodyPart,
                 Url = v.Url,
@@ -47,7 +47,7 @@ public class TrainingVideosController : ControllerBase
                 Status = v.Status,
                 CreatedAt = v.CreatedAt,
                 UpdatedAt = v.UpdatedAt,
-                TagIds = _db.VideoTagMaps.Where(m => m.VideoID == v.VideoID).Select(m => m.TagID).ToList()
+                TagIds = _db.VideoTagMaps.Where(m => m.VideoId == v.VideoId).Select(m => m.TagID).ToList()
             })
             .ToListAsync();
 
@@ -59,10 +59,10 @@ public class TrainingVideosController : ControllerBase
     public async Task<ActionResult<TrainingVideoDetailDto>> GetById(Guid id)
     {
         var dto = await _db.TrainingVideos.AsNoTracking()
-            .Where(v => v.VideoID == id)
-            .Select(v => new TrainingVideoDetailDto
+            .Where(v => v.VideoId == id)
+            .Select(v => new    TrainingVideoDetailDto
             {
-                VideoId = v.VideoID,
+                VideoId = v.VideoId,
                 Title = v.Title,
                 BodyPart = v.BodyPart,
                 Url = v.Url,
@@ -70,7 +70,7 @@ public class TrainingVideosController : ControllerBase
                 Status = v.Status,
                 CreatedAt = v.CreatedAt,
                 UpdatedAt = v.UpdatedAt,
-                TagIds = _db.VideoTagMaps.Where(m => m.VideoID == v.VideoID).Select(m => m.TagID).ToList()
+                TagIds = _db.VideoTagMaps.Where(m => m.VideoId == v.VideoId).Select(m => m.TagID).ToList()
             })
             .FirstOrDefaultAsync();
 
@@ -88,7 +88,7 @@ public class TrainingVideosController : ControllerBase
 
         var v = new TrainingVideo
         {
-            VideoID = Guid.NewGuid(),
+            VideoId = Guid.NewGuid(),
             Title = dto.Title,
             BodyPart = dto.BodyPart,       // 不再 ?? 補值，因為 DTO 已是必填
             Url = dto.Url,
@@ -98,14 +98,14 @@ public class TrainingVideosController : ControllerBase
         _db.TrainingVideos.Add(v);
 
         foreach (var tid in dto.TagIds.Distinct())
-            _db.VideoTagMaps.Add(new VideoTagMap { VideoID = v.VideoID, TagID = tid });
+            _db.VideoTagMaps.Add(new VideoTagMap { VideoId = v.VideoId, TagID = tid });
 
         await _db.SaveChangesAsync();
 
         // 建議新增 GET /api/TrainingVideos/{id}
-        return CreatedAtAction(nameof(GetById), new { id = v.VideoID }, new TrainingVideoDetailDto
+        return CreatedAtAction(nameof(GetById), new { id = v.VideoId }, new TrainingVideoDetailDto
         {
-            VideoId = v.VideoID,
+            VideoId = v.VideoId,
             Title = v.Title,
             BodyPart = v.BodyPart,
             Url = v.Url,
@@ -113,7 +113,7 @@ public class TrainingVideosController : ControllerBase
             Status = v.Status,
             CreatedAt = v.CreatedAt,
             UpdatedAt = v.UpdatedAt,
-            TagIds = await _db.VideoTagMaps.Where(m => m.VideoID == v.VideoID).Select(m => m.TagID).ToListAsync()
+            TagIds = await _db.VideoTagMaps.Where(m => m.VideoId == v.VideoId).Select(m => m.TagID).ToListAsync()
         });
     }
 
@@ -121,7 +121,7 @@ public class TrainingVideosController : ControllerBase
     [HttpPut("{id:guid}/status")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] TrainingVideoStatusDto dto)
     {
-        var v = await _db.TrainingVideos.FirstOrDefaultAsync(x => x.VideoID == id);
+        var v = await _db.TrainingVideos.FirstOrDefaultAsync(x => x.VideoId == id);
         if (v is null) return NotFound();
 
         if (dto is null || string.IsNullOrWhiteSpace(dto.Status))

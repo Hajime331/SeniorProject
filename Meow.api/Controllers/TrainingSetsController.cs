@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Meow.Api.Data;
 using Meow.Shared.Dtos.TrainingSets;
+using Meow.Api.Infrastructure;
 
 [ApiController]
 [Route("api/[controller]")]

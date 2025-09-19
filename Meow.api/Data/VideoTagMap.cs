@@ -6,12 +6,12 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Meow.Api.Data;
 
-[PrimaryKey("VideoID", "TagID")]
+[PrimaryKey("VideoId", "TagID")]
 [Table("VideoTagMap")]
 public partial class VideoTagMap
 {
     [Key]
-    public Guid VideoID { get; set; }
+    public Guid VideoId { get; set; }
 
     [Key]
     public Guid TagID { get; set; }
@@ -23,7 +23,7 @@ public partial class VideoTagMap
     [InverseProperty("VideoTagMaps")]
     public virtual Tag Tag { get; set; } = null!;
 
-    [ForeignKey("VideoID")]
+    [ForeignKey("VideoId")]
     [InverseProperty("VideoTagMaps")]
     public virtual TrainingVideo Video { get; set; } = null!;
 }

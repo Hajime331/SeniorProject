@@ -159,7 +159,7 @@ public class AnalyticsController : ControllerBase
         var query =
             from s in _db.TrainingSessions.AsNoTracking()
             join set in _db.TrainingSets.AsNoTracking()
-                on s.SetID equals set.SetID
+                on s.SetID equals set.SetId
             where s.EndedAt != null
                && s.EndedAt >= utcStart
                && s.EndedAt <= utcEnd

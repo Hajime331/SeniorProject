@@ -119,5 +119,6 @@ namespace Meow.Web.Services
             IEnumerable<Guid>? tagIds = null);
 
         Task UpdateTrainingVideoStatusAsync(Guid videoId, string status);
+
     }
 }

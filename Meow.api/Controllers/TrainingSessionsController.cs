@@ -135,7 +135,7 @@ public class TrainingSessionsController : ControllerBase
                 SessionItemID = Guid.NewGuid(),
                 SessionID = session.SessionID,
                 SetItemID = si.SetItemId,
-                VideoID = si.VideoId,
+                VideoId = si.VideoId,
                 OrderNo = si.OrderNo,
                 Status = "Done", // 預設；之後可依 UI 改
                 ActualReps = null,
@@ -172,7 +172,7 @@ public class TrainingSessionsController : ControllerBase
                     {
                         SessionItemID = i.SessionItemID,
                         SetItemID = i.SetItemID,
-                        VideoID = i.VideoID,
+                        VideoId = i.VideoId,
                         OrderNo = i.OrderNo,
                         Status = i.Status,
                         ActualReps = i.ActualReps,
@@ -216,7 +216,7 @@ public class TrainingSessionsController : ControllerBase
                     {
                         SessionItemID = i.SessionItemID,
                         SetItemID = i.SetItemID,
-                        VideoID = i.VideoID,
+                        VideoId = i.VideoId,
                         OrderNo = i.OrderNo,
                         Status = i.Status,
                         ActualReps = i.ActualReps,
@@ -295,7 +295,7 @@ public class TrainingSessionsController : ControllerBase
         {
             SessionItemID = item.SessionItemID,
             SetItemID = item.SetItemID,
-            VideoID = item.VideoID,
+            VideoId = item.VideoId,
             OrderNo = item.OrderNo,
             Status = item.Status,
             ActualReps = item.ActualReps,
