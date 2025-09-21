@@ -21,8 +21,12 @@ namespace Meow.Web.Areas.Admin.Controllers
         }
 
         // GET: Admin/TrainingSets/Create
-        public IActionResult Create()
+        public async Task<IActionResult> Create()
         {
+            // 若你的 View 需要 Tag/Video 下拉，這裡先載入
+            ViewBag.AllTags = await _api.GetTagsAsync();
+            // 避免多載模稜兩可：第三參數指定 (string?)null
+            ViewBag.AllVideos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
             return View(new TrainingSetEditViewModel());
         }
 
@@ -31,27 +35,41 @@ namespace Meow.Web.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(TrainingSetEditViewModel vm)
         {
-            if (!ModelState.IsValid) return View(vm);
+            if (vm.Items == null || vm.Items.Count == 0)
+                ModelState.AddModelError("", "至少需要一筆課表項目。");
+
+            if (!ModelState.IsValid)
+            {
+                ViewBag.AllTags = await _api.GetTagsAsync();
+                ViewBag.AllVideos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
+                return View(vm);
+            }
+
+            var itemDtos = (vm.Items ?? new List<TrainingSetItemEditViewModel>())
+                .Select((i, idx) => new TrainingSetItemCreateDto(
+                    i.VideoId,
+                    (int?)i.OrderNo ?? (idx + 1), // 這裡用 (int?) 避免 ?? 編譯錯
+                    i.TargetReps, i.RestSec, i.Rounds
+                )).ToList();
 
             var dto = new TrainingSetCreateDto(
-                vm.Name,
-                vm.BodyPart,
-                vm.Equipment,
-                vm.Difficulty,
-                vm.EstimatedDurationSec,
-                vm.TagIds ?? new List<Guid>(),
-                (vm.Items ?? new List<TrainingSetItemEditViewModel>()).Select(i => new TrainingSetItemCreateDto(
-                    i.VideoId,
-                    i.OrderNo,
-                    i.TargetReps,
-                    i.RestSec,
-                    i.Rounds
-                )).ToList()
+                vm.Name, vm.BodyPart, vm.Equipment, vm.Difficulty,
+                vm.EstimatedDurationSec, vm.TagIds ?? new List<Guid>(), itemDtos
             );
 
-            var created = await _api.CreateTrainingSetAsync(dto);
-            // 介面是回 DetailDto；若要顯示成功提示可用 TempData
-            return RedirectToAction(nameof(Index));
+            try
+            {
+                var created = await _api.CreateTrainingSetAsync(dto);
+                TempData["Ok"] = "已建立課表。";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (ApplicationException ex)
+            {
+                ModelState.AddModelError("", ex.Message);
+                ViewBag.AllTags = await _api.GetTagsAsync();
+                ViewBag.AllVideos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
+                return View(vm);
+            }
         }
 
         // GET: Admin/TrainingSets/Edit/{id}
@@ -79,6 +97,9 @@ namespace Meow.Web.Areas.Admin.Controllers
                     Rounds = x.Rounds
                 }).ToList()
             };
+
+            ViewBag.AllTags = await _api.GetTagsAsync();
+            ViewBag.AllVideos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
             return View(vm);
         }
 
@@ -87,31 +108,47 @@ namespace Meow.Web.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(TrainingSetEditViewModel vm)
         {
-            if (!ModelState.IsValid) return View(vm);
-            if (vm.SetId is null) { ModelState.AddModelError("", "缺少 SetId。"); return View(vm); }
+            if (vm.SetId is null || vm.SetId == Guid.Empty)
+                ModelState.AddModelError("", "缺少 SetId。");
+
+            if (vm.Items == null || vm.Items.Count == 0)
+                ModelState.AddModelError("", "至少需要一筆課表項目。");
+
+            if (!ModelState.IsValid)
+            {
+                ViewBag.AllTags = await _api.GetTagsAsync();
+                ViewBag.AllVideos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
+                return View(vm);
+            }
+
+            var items = vm.Items.Select(i => new TrainingSetItemUpdateDto
+            {
+                SetItemId = i.SetItemId,
+                VideoId = i.VideoId,
+                OrderNo = i.OrderNo,
+                TargetReps = i.TargetReps,
+                RestSec = i.RestSec,
+                Rounds = i.Rounds
+            }).ToList();
 
             var dto = new TrainingSetUpdateDto(
-                vm.SetId.Value,
-                vm.Name,
-                vm.BodyPart,
-                vm.Equipment,
-                vm.Difficulty,
-                vm.EstimatedDurationSec,
-                vm.TagIds ?? new List<Guid>(),
-                (vm.Items ?? new List<TrainingSetItemEditViewModel>()).Select(i => new TrainingSetItemUpdateDto
-                {
-                    SetItemId = i.SetItemId,
-                    VideoId = i.VideoId,
-                    OrderNo = i.OrderNo,
-                    TargetReps = i.TargetReps,
-                    RestSec = i.RestSec,
-                    Rounds = i.Rounds
-                }).ToList()
+                vm.SetId.Value, vm.Name, vm.BodyPart, vm.Equipment, vm.Difficulty,
+                vm.EstimatedDurationSec, vm.TagIds ?? new List<Guid>(), items
             );
 
-            // 若你的 IBackendApi 只有「dto-only」版本：改成 await _api.UpdateTrainingSetAsync(dto);
-            var updated = await _api.UpdateTrainingSetAsync(vm.SetId.Value, dto);
-            return RedirectToAction(nameof(Index));
+            try
+            {
+                var updated = await _api.UpdateTrainingSetAsync(vm.SetId.Value, dto);
+                TempData["Ok"] = "已更新課表。";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (ApplicationException ex)
+            {
+                ModelState.AddModelError("", ex.Message);
+                ViewBag.AllTags = await _api.GetTagsAsync();
+                ViewBag.AllVideos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
+                return View(vm);
+            }
         }
 
         // POST: Admin/TrainingSets/Delete/{id}
@@ -119,8 +156,17 @@ namespace Meow.Web.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(Guid id)
         {
-            await _api.DeleteTrainingSetAsync(id);
+            try
+            {
+                await _api.DeleteTrainingSetAsync(id);
+                TempData["Ok"] = "已刪除課表。";
+            }
+            catch (ApplicationException ex)
+            {
+                TempData["Error"] = ex.Message;
+            }
             return RedirectToAction(nameof(Index));
         }
     }
+
 }

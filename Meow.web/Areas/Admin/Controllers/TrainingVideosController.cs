@@ -16,8 +16,8 @@ namespace Meow.Web.Areas.Admin.Controllers
         // GET: Admin/TrainingVideos
         public async Task<IActionResult> Index(string? keyword, string? status)
         {
-            var list = await _api.GetTrainingVideosAsync(keyword, status, null);
-            return View(list.ToList());
+            var videos = await _api.GetTrainingVideosAsync(keyword, status, (string?)null);
+            return View(videos.ToList());
         }
 
         // GET: Admin/TrainingVideos/Create
@@ -73,20 +73,27 @@ namespace Meow.Web.Areas.Admin.Controllers
         public async Task<IActionResult> Edit(TrainingVideoEditViewModel vm)
         {
             if (!ModelState.IsValid) return View(vm);
-            if (vm.VideoId == Guid.Empty) { ModelState.AddModelError("", "缺少 VideoId。"); return View(vm); }
+            if (vm.VideoId == Guid.Empty) { ModelState.AddModelError("", "VideoId 無效"); return View(vm); }
 
-            var dto = new TrainingVideoUpdateDto(
-                vm.VideoId,
-                vm.Title,
-                vm.BodyPart,
-                vm.Url,
-                vm.DurationSec,
-                vm.Status,
-                vm.TagIds ?? new List<Guid>()
-            );
-
-            var updated = await _api.UpdateTrainingVideoAsync(dto);
-            return RedirectToAction(nameof(Index));
+            try
+            {
+                var dto = new TrainingVideoUpdateDto(
+                    vm.VideoId,
+                    vm.Title,
+                    vm.BodyPart,
+                    vm.Url,
+                    vm.DurationSec,
+                    vm.Status,
+                    vm.TagIds ?? new List<Guid>()
+                );
+                var updated = await _api.UpdateTrainingVideoAsync(dto);
+                return RedirectToAction(nameof(Index));
+            }
+            catch (ApplicationException ex)
+            {
+                ModelState.AddModelError("", ex.Message);
+                return View(vm);
+            }
         }
 
         // POST: Admin/TrainingVideos/Delete/{id}

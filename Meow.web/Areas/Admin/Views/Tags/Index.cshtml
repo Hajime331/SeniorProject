@@ -1,27 +1,34 @@
-﻿@using Meow.Shared.Dtos.Tags
-@model IReadOnlyList<TagDto>
+﻿@model IEnumerable<Meow.Shared.Dtos.Tags.TagDto>
 @{
     ViewData["Title"] = "標籤管理";
-    var keyword = (string?)ViewBag.Keyword;
+    var keyword = (string?)ViewBag.Keyword ?? string.Empty;
+    var status  = (string?)ViewBag.Status  ?? string.Empty; // 若你的 Controller 支援狀態查詢
 }
+
 <h2 class="mb-3">標籤管理</h2>
 
-<form method="get" class="row g-2 mb-3">
-    <div class="col-auto">
-        <input name="keyword" value="@keyword" class="form-control" placeholder="搜尋名稱…" />
-    </div>
-    <div class="col-auto">
-        <button class="btn btn-primary" type="submit">搜尋</button>
-        <a asp-action="Index" class="btn btn-outline-secondary">清除</a>
-        <a asp-action="Create" class="btn btn-success ms-2">新增標籤</a>
-    </div>
-</form>
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <form asp-action="Index" method="get" class="d-flex gap-2">
+        <input type="text" name="keyword" value="@keyword" class="form-control" placeholder="關鍵字（名稱/分類）" />
 
-@if (TempData["Ok"] is string ok)
+        <select id="statusSelect" name="status" class="form-select" style="min-width:160px;">
+            <option value="">全部狀態</option>
+            <option value="Active">Active</option>
+            <option value="Inactive">Inactive</option>
+        </select>
+
+        <button type="submit" class="btn btn-outline-secondary">查詢</button>
+        <a asp-action="Index" class="btn btn-outline-dark">重設</a>
+    </form>
+
+    <a asp-action="Create" class="btn btn-primary">新增標籤</a>
+</div>
+
+@if (TempData["Ok"] is string ok && !string.IsNullOrWhiteSpace(ok))
 {
     <div class="alert alert-success">@ok</div>
 }
-@if (TempData["Error"] is string err)
+@if (TempData["Error"] is string err && !string.IsNullOrWhiteSpace(err))
 {
     <div class="alert alert-danger">@err</div>
 }
@@ -29,25 +36,40 @@
 <table class="table table-striped align-middle">
     <thead>
         <tr>
-            <th style="width:40%">名稱</th>
-            <th style="width:20%">分類</th>
-            <th style="width:40%"></th>
+            <th style="width:40%;">名稱</th>
+            <th style="width:40%;">分類</th>
+            <th style="width:20%;"></th>
         </tr>
     </thead>
     <tbody>
-        @foreach (var t in Model)
+        @if (Model == null || !Model.Any())
         {
             <tr>
-                <td>@t.Name</td>
-                <td>@t.Category</td>
-                <td class="text-end">
-                    <a asp-action="Edit" asp-route-id="@t.TagId" class="btn btn-sm btn-outline-primary">編輯</a>
-                    <form asp-action="Delete" asp-route-id="@t.TagId" method="post" class="d-inline">
-                        @Html.AntiForgeryToken()
-                        <button class="btn btn-sm btn-outline-danger" onclick="return confirm('確定刪除？')">刪除</button>
-                    </form>
-                </td>
+                <td colspan="3" class="text-center text-muted py-4">目前沒有資料</td>
             </tr>
+        }
+        else
+        {
+            foreach (var tag in Model)
+            {
+                <tr>
+                    <td class="fw-semibold">@tag.Name</td>
+                    <td>@(string.IsNullOrWhiteSpace(tag.Category) ? "-" : tag.Category)</td>
+                    <td class="text-end">
+                        <a asp-action="Edit" asp-route-id="@tag.TagId" class="btn btn-sm btn-warning me-1">編輯</a>
+                        <form asp-action="Delete" asp-route-id="@tag.TagId" method="post" class="d-inline"
+                              onsubmit="return confirm('確定要刪除標籤「@tag.Name」嗎？');">
+                            <button type="submit" class="btn btn-sm btn-danger">刪除</button>
+                        </form>
+                    </td>
+                </tr>
+            }
         }
     </tbody>
 </table>
+
+@section Scripts {
+    <script>
+        document.getElementById('statusSelect').value = '@status';
+    </script>
+}

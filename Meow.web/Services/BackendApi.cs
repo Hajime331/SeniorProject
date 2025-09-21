@@ -363,21 +363,21 @@ namespace Meow.Web.Services
         }
 
 
-        public async Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(
-            string? keyword, string? status, string? tagIdsCsv)
+        // 取得影片列表 (字串 CSV)
+        public async Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(string? keyword, string? status, string? tagIdsCsv)
         {
             var qs = new Dictionary<string, string?>();
             if (!string.IsNullOrWhiteSpace(keyword)) qs["keyword"] = keyword;
             if (!string.IsNullOrWhiteSpace(status)) qs["status"] = status;
-            if (!string.IsNullOrWhiteSpace(tagIdsCsv)) qs["tagIds"] = tagIdsCsv; // API 端的參數名就是 tagIds
+            if (!string.IsNullOrWhiteSpace(tagIdsCsv)) qs["tagIds"] = tagIdsCsv;
 
-            var url = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("api/TrainingVideos", qs);
+            var url = QueryHelpers.AddQueryString("api/TrainingVideos", qs);
             return await _http.GetFromJsonAsync<List<TrainingVideoListItemDto>>(url) ?? new List<TrainingVideoListItemDto>();
         }
 
-        // 多載：吃 List<Guid>，自動轉 CSV 後呼叫上面那支
-        public Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(
-            string? keyword, string? status, IEnumerable<Guid>? tagIds)
+
+        // 多載：吃 IEnumerable<Guid> 自動轉 CSV
+        public Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(string? keyword, string? status, IEnumerable<Guid>? tagIds)
         {
             string? csv = (tagIds != null) ? string.Join(",", tagIds) : null;
             return GetTrainingVideosAsync(keyword, status, csv);
@@ -414,7 +414,6 @@ namespace Meow.Web.Services
             }
             return (await resp.Content.ReadFromJsonAsync<TrainingVideoDetailDto>())!;
         }
-
 
 
         public async Task<TrainingVideoDetailDto> UpdateTrainingVideoAsync(TrainingVideoUpdateDto dto)

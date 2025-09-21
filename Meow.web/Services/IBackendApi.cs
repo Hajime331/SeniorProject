@@ -120,63 +120,55 @@ namespace Meow.Web.Services
         Task<TrainingSessionDetailDto?> GetTrainingSessionAsync(Guid sessionId);
 
 
-        // 影片查詢（支援 keyword/status/tagIds，多選 tagIds 以逗號字串）
-        Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(string? keyword, string? status, string? tagIdsCsv);
-
-
-        // 新增這個多載（吃 List<Guid>）
-        Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(
-            string? keyword, string? status, IEnumerable<Guid>? tagIds);
-
-
-        Task UpdateTrainingVideoTagsAsync(Guid id, IEnumerable<Guid> tagIds);
-
-
-        // 取得單一影片詳情
-        Task<TrainingVideoDetailDto?> GetTrainingVideoAsync(Guid id);
-
-
-        // 建立影片
-        Task<TrainingVideoDetailDto> CreateTrainingVideoAsync(TrainingVideoCreateDto dto);
-
-
-
-        // 影片更新
-        Task<TrainingVideoDetailDto> UpdateTrainingVideoAsync(TrainingVideoUpdateDto dto);
-
-
-
-        // 更新影片（用於未來擴充）
-        Task UpdateTrainingVideoStatusAsync(Guid id, string status);
-
-
-        // 刪除影片
-        Task DeleteTrainingVideoAsync(Guid id);
-
-
-        // 取得所有課表清單（支援 keyword/status 篩選）
+        // 供「後台 TrainingSets 清單頁」使用
+        // 抓全部訓練組合清單
         Task<IReadOnlyList<TrainingSetListItemDto>> GetTrainingSetsAsync(string? keyword, string? status);
 
-
-
-        // 取得單一課表詳情
+        // 抓單一訓練組合詳細資料
         Task<TrainingSetDetailDto?> GetTrainingSetAsync(Guid id);
 
 
-        // 建立課表
+        // 建立 / 更新 / 刪除
         Task<TrainingSetDetailDto> CreateTrainingSetAsync(TrainingSetCreateDto dto);
 
 
-        // 課表更新
         Task<TrainingSetDetailDto> UpdateTrainingSetAsync(Guid id, TrainingSetUpdateDto dto);
 
-        // 刪除課表
+
         Task DeleteTrainingSetAsync(Guid id);
 
 
+        // 供「後台 TrainingVideos 清單頁」使用
+        // 新增：建立 / 更新 / 刪除
+        Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(string? keyword, string? status, string? tagIdsCsv);
+
 
         // 便利多載
-        Task<TrainingSetDetailDto> UpdateTrainingSetAsync(TrainingSetUpdateDto dto); 
+        Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(string? keyword, string? status, IEnumerable<Guid>? tagIds);
+
+
+        // 抓單一訓練影片詳細資料
+        Task<TrainingVideoDetailDto?> GetTrainingVideoAsync(Guid id);
+
+
+        // 建立 / 更新 / 刪除
+        Task<TrainingVideoDetailDto> CreateTrainingVideoAsync(TrainingVideoCreateDto dto);
+
+
+        Task<TrainingVideoDetailDto> UpdateTrainingVideoAsync(TrainingVideoUpdateDto dto);
+
+
+        Task DeleteTrainingVideoAsync(Guid id);
+
+
+
+        // 更新影片的標籤
+        Task UpdateTrainingVideoTagsAsync(Guid id, IEnumerable<Guid> tagIds);
+
+
+        // 更新影片的狀態
+        Task UpdateTrainingVideoStatusAsync(Guid id, string status);
+
 
     }
 }

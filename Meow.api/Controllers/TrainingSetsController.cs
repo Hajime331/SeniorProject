@@ -35,6 +35,17 @@ public class TrainingSetsController : ControllerBase
         return Ok(list);
     }
 
+    // GET /api/TrainingSets/{id}
+    [HttpGet("{id:guid}")]
+    public async Task<ActionResult<TrainingSetDetailDto>> GetById(Guid id)
+    {
+        var exists = await _db.TrainingSets.AsNoTracking().AnyAsync(s => s.SetID == id);
+        if (!exists) return NotFound();
+
+        var dto = await ProjectDetail(id);
+        return Ok(dto);
+    }
+
     // POST /api/TrainingSets （建立 + Items + TagIds）
     [Authorize]
     [HttpPost]
@@ -43,10 +54,9 @@ public class TrainingSetsController : ControllerBase
         if (!(User?.Identity?.IsAuthenticated ?? false)) return Unauthorized();
 
         if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Name required.");
-
         if (dto.Items is null || dto.Items.Count == 0) return BadRequest("At least 1 item.");
 
-        // ★ 驗證所有 VideoId 存在
+        // 驗證所有 VideoId 存在（避免 EF FK 500）
         var videoIds = dto.Items.Select(i => i.VideoId).ToHashSet();
         var existingVideoIds = await _db.TrainingVideos
             .Where(v => videoIds.Contains(v.VideoID))
@@ -63,6 +73,7 @@ public class TrainingSetsController : ControllerBase
             if (okCount != tagIds.Count) return BadRequest("Some TagId not found.");
         }
 
+        var me = User.GetMemberId();
 
         var set = new TrainingSet
         {
@@ -72,13 +83,14 @@ public class TrainingSetsController : ControllerBase
             Equipment = dto.Equipment ?? "無器材",
             Difficulty = dto.Difficulty,
             EstimatedDurationSec = dto.EstimatedDurationSec,
-            IsCustom = true, OwnerMemberID = User.GetMemberId(), Status = "Active"
+            IsCustom = true,
+            OwnerMemberID = me,
+            Status = "Active"
         };
-
         _db.TrainingSets.Add(set);
 
         // Items
-        var order = 1;
+        var orderSeed = 1;
         foreach (var it in dto.Items.OrderBy(x => x.OrderNo ?? int.MaxValue))
         {
             _db.TrainingSetItems.Add(new TrainingSetItem
@@ -86,7 +98,7 @@ public class TrainingSetsController : ControllerBase
                 SetItemID = Guid.NewGuid(),
                 SetID = set.SetID,
                 VideoID = it.VideoId,
-                OrderNo = it.OrderNo ?? order++,
+                OrderNo = it.OrderNo ?? orderSeed++,
                 TargetReps = it.TargetReps,
                 RestSec = it.RestSec,
                 Rounds = it.Rounds
@@ -105,7 +117,154 @@ public class TrainingSetsController : ControllerBase
         return CreatedAtAction(nameof(GetById), new { id = set.SetID }, await ProjectDetail(set.SetID));
     }
 
-    // 重構：取得單筆詳細資料的共用方法
+    // PUT /api/TrainingSets/{id}
+    [Authorize]
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] TrainingSetUpdateDto dto)
+    {
+        if (!(User?.Identity?.IsAuthenticated ?? false)) return Unauthorized();
+        if (id == Guid.Empty || id != dto.SetId) return BadRequest("Invalid id.");
+
+        var set = await _db.TrainingSets.FirstOrDefaultAsync(s => s.SetID == id);
+        if (set is null) return NotFound();
+
+        // 擁有者或 Admin 才能改
+        var me = User.GetMemberId();
+        var isOwner = set.OwnerMemberID == me;
+        if (!isOwner && !User.IsAdmin()) return Forbid();
+
+        if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Name required.");
+        if (dto.Items is null || dto.Items.Count == 0) return BadRequest("At least 1 item.");
+
+        // 驗證 Video / Tag 存在
+        var videoIds = dto.Items.Select(i => i.VideoId).ToHashSet();
+        var existingVideoIds = await _db.TrainingVideos.Where(v => videoIds.Contains(v.VideoID)).Select(v => v.VideoID).ToListAsync();
+        if (existingVideoIds.Count != videoIds.Count)
+            return BadRequest("Some VideoId not found.");
+
+        if (dto.TagIds is not null && dto.TagIds.Count > 0)
+        {
+            var tagIds = dto.TagIds.Distinct().ToList();
+            var okCount = await _db.Tags.CountAsync(t => tagIds.Contains(t.TagID));
+            if (okCount != tagIds.Count) return BadRequest("Some TagId not found.");
+        }
+
+        // === 先更新主檔 ===
+        set.Name = dto.Name!;
+        set.BodyPart = dto.BodyPart ?? "全身";
+        set.Equipment = dto.Equipment ?? "無器材";
+        set.Difficulty = dto.Difficulty;
+        set.EstimatedDurationSec = dto.EstimatedDurationSec;
+
+        // === 差異更新 Items（避免整批刪除引發 FK 500）===
+        var existingItems = await _db.TrainingSetItems
+            .Where(i => i.SetID == id)
+            .ToListAsync();
+
+        // 以 SetItemId 建索引
+        var existingMap = existingItems.ToDictionary(x => x.SetItemID, x => x);
+        // 收集本次保留的 SetItemID
+        var keepIds = new HashSet<Guid>();
+
+        int orderSeed = 1;
+
+        // 先依照傳入排序（若沒有 OrderNo 就以順序種子）
+        var incoming = dto.Items
+            .OrderBy(x => (int?)x.OrderNo ?? int.MaxValue)
+            .ToList();
+
+        foreach (var it in incoming)
+        {
+            if (it.SetItemId.HasValue && existingMap.TryGetValue(it.SetItemId.Value, out var exist))
+            {
+                // 更新既有項目
+                exist.VideoID = it.VideoId;
+                exist.OrderNo = (int?)it.OrderNo ?? orderSeed++;
+                exist.TargetReps = it.TargetReps;
+                exist.RestSec = it.RestSec;
+                exist.Rounds = it.Rounds;
+
+                keepIds.Add(exist.SetItemID);
+            }
+            else
+            {
+                // 新增新項目
+                var newItem = new TrainingSetItem
+                {
+                    SetItemID = Guid.NewGuid(),
+                    SetID = id,
+                    VideoID = it.VideoId,
+                    OrderNo = (int?)it.OrderNo ?? orderSeed++,
+                    TargetReps = it.TargetReps,
+                    RestSec = it.RestSec,
+                    Rounds = it.Rounds
+                };
+                _db.TrainingSetItems.Add(newItem);
+                keepIds.Add(newItem.SetItemID);
+            }
+        }
+
+        // 找出要刪除的舊項目（本次沒被保留者）
+        var toDelete = existingItems.Where(x => !keepIds.Contains(x.SetItemID)).ToList();
+        if (toDelete.Count > 0)
+        {
+            var delIds = toDelete.Select(x => x.SetItemID).ToList();
+
+            // ★ 檢查是否被 TrainingSessionItem 參考；若有就禁止刪除，回 400
+            var inUseIds = await _db.TrainingSessionItems
+                .Where(si => delIds.Contains(si.SetItemID))
+                .Select(si => si.SetItemID)
+                .Distinct()
+                .ToListAsync();
+
+            if (inUseIds.Any())
+            {
+                // 你也可以列出明確是哪幾個 ID，以利除錯
+                return BadRequest("Some set items are referenced by sessions and cannot be removed.");
+            }
+
+            _db.TrainingSetItems.RemoveRange(toDelete);
+        }
+
+        // === 重建 Tag map（這段通常沒有 FK 問題）===
+        var oldMaps = await _db.SetTagMaps.Where(m => m.SetID == id).ToListAsync();
+        _db.SetTagMaps.RemoveRange(oldMaps);
+        if (dto.TagIds is not null)
+        {
+            foreach (var tid in dto.TagIds.Distinct())
+                _db.SetTagMaps.Add(new SetTagMap { SetID = id, TagID = tid });
+        }
+
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+
+    // DELETE /api/TrainingSets/{id}
+    [Authorize]
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        if (!(User?.Identity?.IsAuthenticated ?? false)) return Unauthorized();
+
+        var set = await _db.TrainingSets.FirstOrDefaultAsync(s => s.SetID == id);
+        if (set is null) return NotFound();
+
+        var me = User.GetMemberId();
+        var isOwner = set.OwnerMemberID == me;
+        if (!isOwner && !User.IsAdmin()) return Forbid();
+
+        var items = await _db.TrainingSetItems.Where(i => i.SetID == id).ToListAsync();
+        var maps = await _db.SetTagMaps.Where(m => m.SetID == id).ToListAsync();
+        _db.TrainingSetItems.RemoveRange(items);
+        _db.SetTagMaps.RemoveRange(maps);
+        _db.TrainingSets.Remove(set);
+
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    // 共用：將單筆 Set 投影成 Detail DTO
     private async Task<TrainingSetDetailDto> ProjectDetail(Guid id)
     {
         return await _db.TrainingSets.AsNoTracking()
@@ -129,138 +288,5 @@ public class TrainingSetsController : ControllerBase
                     .ToList()
             })
             .FirstAsync();
-    }
-
-
-    // GET /api/TrainingSets/{id}
-    [HttpGet("{id:guid}")]
-    public async Task<ActionResult<TrainingSetDetailDto>> GetById(Guid id)
-    {
-        // 直接重用你的 ProjectDetail(id)
-        var exists = await _db.TrainingSets.AsNoTracking().AnyAsync(s => s.SetID == id);
-        if (!exists) return NotFound();
-
-        var dto = await ProjectDetail(id);
-        return Ok(dto);
-    }
-
-
-    // PUT /api/TrainingSets/{id}
-    [Authorize]
-    [HttpPut("{id:guid}")]
-    public async Task<IActionResult> Update(Guid id, [FromBody] TrainingSetUpdateDto dto)
-    {
-        if (!(User?.Identity?.IsAuthenticated ?? false)) return Unauthorized();
-
-        if (id != dto.SetId) return BadRequest("ID mismatch.");
-
-        if (string.IsNullOrWhiteSpace(dto.Name)) return BadRequest("Name required.");
-
-        if (dto.Items == null || dto.Items.Count == 0) return BadRequest("At least 1 item.");
-
-        // ★ 驗證所有 VideoId 存在
-        var videoIds = dto.Items.Select(i => i.VideoId).ToHashSet();
-        var existingVideoIds = await _db.TrainingVideos
-            .Where(v => videoIds.Contains(v.VideoID))
-            .Select(v => v.VideoID)
-            .ToListAsync();
-        if (existingVideoIds.Count != videoIds.Count)
-            return BadRequest("Some VideoId not found.");
-
-        // 驗證 TagIds 存在
-        if (dto.TagIds is not null && dto.TagIds.Count > 0)
-        {
-            var tagIds = dto.TagIds.Distinct().ToList();
-            var okCount = await _db.Tags.CountAsync(t => tagIds.Contains(t.TagID));
-            if (okCount != tagIds.Count) return BadRequest("Some TagId not found.");
-        }
-
-        // 讀取現有資料（包含 Items）
-        var set = await _db.TrainingSets.Include(s => s.TrainingSetItems).FirstOrDefaultAsync(s => s.SetID == id);
-        if (set == null) return NotFound();
-
-        // 權限：管理者或擁有者
-        var me = User.GetMemberId();
-        if (!User.IsAdmin() && set.OwnerMemberID != me) return Forbid();
-
-        // 更新主檔
-        set.Name = dto.Name;
-        set.BodyPart = dto.BodyPart;
-        set.Equipment = dto.Equipment;
-        set.Difficulty = dto.Difficulty;
-        set.EstimatedDurationSec = dto.EstimatedDurationSec ?? 0;
-        set.UpdatedAt = DateTime.UtcNow;
-
-        // 更新 Tags：先移除原有，再新增
-        var oldTagMaps = _db.SetTagMaps.Where(m => m.SetID == id);
-        _db.SetTagMaps.RemoveRange(oldTagMaps);
-        foreach (var tid in (dto.TagIds ?? new List<Guid>()).Distinct())
-        {
-            _db.SetTagMaps.Add(new SetTagMap { SetID = id, TagID = tid });
-        }
-
-        // 更新 Items：先找出現有項目，比對 dto.Items
-        var existingItems = await _db.TrainingSetItems.Where(i => i.SetID == id).ToListAsync();
-        // 刪除不再存在的項目
-        var dtoItemIds = dto.Items.Where(i => i.SetItemId.HasValue).Select(i => i.SetItemId.Value).ToHashSet();
-        foreach (var oldItem in existingItems.Where(i => !dtoItemIds.Contains(i.SetItemID)))
-        {
-            _db.TrainingSetItems.Remove(oldItem);
-        }
-        // 更新或新增項目
-        
-        int order = 1;
-        foreach (var it in dto.Items.OrderBy(x => x.OrderNo))
-        {
-            if (it.SetItemId.HasValue)
-            {
-                var item = existingItems.First(x => x.SetItemID == it.SetItemId.Value);
-                item.VideoID = it.VideoId;
-                item.OrderNo = it.OrderNo;
-                item.TargetReps = it.TargetReps;
-                item.RestSec = it.RestSec;
-                item.Rounds = it.Rounds;
-            }
-            else
-            {
-                _db.TrainingSetItems.Add(new TrainingSetItem
-                {
-                    SetItemID = Guid.NewGuid(),
-                    SetID = id,
-                    VideoID = it.VideoId,
-                    OrderNo = it.OrderNo,
-                    TargetReps = it.TargetReps,
-                    RestSec = it.RestSec,
-                    Rounds = it.Rounds
-                });
-            }
-        }
-
-        await _db.SaveChangesAsync();
-        return NoContent();
-    }
-
-    // DELETE /api/TrainingSets/{id}
-    [Authorize]
-    [HttpDelete("{id:guid}")]
-    public async Task<IActionResult> Delete(Guid id)
-    {
-        if (!(User?.Identity?.IsAuthenticated ?? false)) return Unauthorized();
-
-        var set = await _db.TrainingSets.FirstOrDefaultAsync(s => s.SetID == id);
-        if (set == null) return NotFound();
-
-        var me = User.GetMemberId();
-        if (!User.IsAdmin() && set.OwnerMemberID != me) return Forbid();
-
-        // 移除關聯項目與標籤
-        var items = _db.TrainingSetItems.Where(i => i.SetID == id);
-        _db.TrainingSetItems.RemoveRange(items);
-        var tagMaps = _db.SetTagMaps.Where(m => m.SetID == id);
-        _db.SetTagMaps.RemoveRange(tagMaps);
-
-        _db.TrainingSets.Remove(set);
-        await _db.SaveChangesAsync();
-        return NoContent();
     }
 }

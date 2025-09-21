@@ -60,7 +60,9 @@ public class TrainingSetsController : Controller
         if (!ModelState.IsValid)
         {
             model.AllTags = (await _api.GetTagsAsync()).ToList();
-            model.AllVideos = (await _api.GetTrainingVideosAsync(null, "Published", null)).ToList();
+            
+            model.AllVideos = (await _api.GetTrainingVideosAsync(null, "Published", tagIdsCsv: null)).ToList();
+
             return View(model);
         }
 
@@ -93,7 +95,7 @@ public class TrainingSetsController : Controller
         if (set == null) return NotFound();
         var tags = await _api.GetTagsAsync();
         // 取出所有影片清單，以便顯示項目中的影片名稱
-        var videos = await _api.GetTrainingVideosAsync(null, null, null);
+        var videos = await _api.GetTrainingVideosAsync(null, null, tagIdsCsv: null);
         var vm = new TrainingSetDetailVm
         {
             Set = set,
