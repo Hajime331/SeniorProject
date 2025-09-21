@@ -34,11 +34,12 @@
                     </div>
                 </div>
                 <div>
-                    <form asp-action="Start" method="post" class="d-inline">
+                    <form asp-controller="TrainingSessions" asp-action="Start" method="post" class="d-inline">
                         @Html.AntiForgeryToken()
-                        <input type="hidden" name="id" value="@s.SetId" />
-                        <button class="btn btn-sm btn-primary" type="submit">以此課表開始訓練</button>
+                        <input type="hidden" name="setId" value="@s.SetId" />
+                        <button type="submit" class="btn btn-success btn-sm">以此課表開始訓練</button>
                     </form>
+
                 </div>
             </div>
         }

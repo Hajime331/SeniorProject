@@ -6,8 +6,18 @@ using System.Threading.Tasks;
 
 namespace Meow.Shared.Dtos.Videos
 {
-    public class TrainingVideoDetailDto : TrainingVideoListItemDto
+    public class TrainingVideoDetailDto
     {
-        // 目前可與 ListItem 相同；若未來有更多細節可擴充
+        public Guid VideoId { get; set; }
+        public string Title { get; set; } = "";
+        public string BodyPart { get; set; } = "";
+        public string Url { get; set; } = "";
+        public int DurationSec { get; set; }
+        public string Status { get; set; } = "Draft";
+        public DateTime CreatedAt { get; set; }
+        public DateTime UpdatedAt { get; set; }
+        public List<Guid> TagIds { get; set; } = new();
+        public string? ThumbnailUrl { get; set; } // ★ 新增
+                                                  // （選用）public Guid? CreatedByMemberID { get; set; }
     }
 }

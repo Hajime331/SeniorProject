@@ -1,0 +1,53 @@
+﻿@using Meow.Shared.Dtos.Tags
+@model IReadOnlyList<TagDto>
+@{
+    ViewData["Title"] = "標籤管理";
+    var keyword = (string?)ViewBag.Keyword;
+}
+<h2 class="mb-3">標籤管理</h2>
+
+<form method="get" class="row g-2 mb-3">
+    <div class="col-auto">
+        <input name="keyword" value="@keyword" class="form-control" placeholder="搜尋名稱…" />
+    </div>
+    <div class="col-auto">
+        <button class="btn btn-primary" type="submit">搜尋</button>
+        <a asp-action="Index" class="btn btn-outline-secondary">清除</a>
+        <a asp-action="Create" class="btn btn-success ms-2">新增標籤</a>
+    </div>
+</form>
+
+@if (TempData["Ok"] is string ok)
+{
+    <div class="alert alert-success">@ok</div>
+}
+@if (TempData["Error"] is string err)
+{
+    <div class="alert alert-danger">@err</div>
+}
+
+<table class="table table-striped align-middle">
+    <thead>
+        <tr>
+            <th style="width:40%">名稱</th>
+            <th style="width:20%">分類</th>
+            <th style="width:40%"></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var t in Model)
+        {
+            <tr>
+                <td>@t.Name</td>
+                <td>@t.Category</td>
+                <td class="text-end">
+                    <a asp-action="Edit" asp-route-id="@t.TagId" class="btn btn-sm btn-outline-primary">編輯</a>
+                    <form asp-action="Delete" asp-route-id="@t.TagId" method="post" class="d-inline">
+                        @Html.AntiForgeryToken()
+                        <button class="btn btn-sm btn-outline-danger" onclick="return confirm('確定刪除？')">刪除</button>
+                    </form>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>

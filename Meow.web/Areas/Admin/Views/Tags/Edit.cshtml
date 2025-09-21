@@ -1,0 +1,25 @@
+﻿@using Meow.Shared.Dtos.Tags
+@model TagUpdateDto
+@{
+    ViewData["Title"] = "編輯標籤";
+}
+<h2 class="mb-3">編輯標籤</h2>
+
+<form method="post">
+    @Html.AntiForgeryToken()
+    <div class="mb-3">
+        <label class="form-label">名稱</label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+    <div class="mb-3">
+        <label class="form-label">分類</label>
+        <select asp-for="Category" class="form-select">
+            <option>一般</option>
+            <option>部位</option>
+        </select>
+        <span asp-validation-for="Category" class="text-danger"></span>
+    </div>
+    <button class="btn btn-primary" type="submit">儲存</button>
+    <a asp-action="Index" class="btn btn-outline-secondary ms-2">返回</a>
+</form>

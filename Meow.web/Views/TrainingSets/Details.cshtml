@@ -1,0 +1,66 @@
+﻿@model Meow.Web.ViewModels.TrainingSets.TrainingSetDetailVm
+@{
+    ViewData["Title"] = "課表詳情";
+    var tagMap = Model.AllTags.ToDictionary(t => t.TagId, t => t.Name);
+    var videoMap = Model.AllVideos.ToDictionary(v => v.VideoId, v => v);
+}
+
+<h2>@Model.Set.Name</h2>
+
+<p>部位：@Model.Set.BodyPart</p>
+<p>器材：@Model.Set.Equipment</p>
+@if (!string.IsNullOrEmpty(Model.Set.Difficulty))
+{
+    <p>難度：@Model.Set.Difficulty</p>
+}
+@if (Model.Set.EstimatedDurationSec.HasValue)
+{
+    <p>預估時間：@Model.Set.EstimatedDurationSec 秒</p>
+}
+<p>狀態：@Model.Set.Status</p>
+
+@if (Model.Set.TagIds?.Any() == true)
+{
+    <p>
+        標籤：
+        @foreach (var tid in Model.Set.TagIds)
+        {
+            if (tagMap.TryGetValue(tid, out var name))
+            {
+                <span class="badge bg-primary me-1">@name</span>
+            }
+        }
+    </p>
+}
+
+<h4>課表項目</h4>
+<table class="table">
+    <thead>
+        <tr>
+            <th>順序</th>
+            <th>影片</th>
+            <th>Reps</th>
+            <th>Rest</th>
+            <th>Rounds</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var item in Model.Set.Items.OrderBy(i => i.OrderNo))
+        {
+            var v = videoMap.ContainsKey(item.VideoId) ? videoMap[item.VideoId] : null;
+            <tr>
+                <td>@item.OrderNo</td>
+                <td>@v?.Title</td>
+                <td>@item.TargetReps</td>
+                <td>@item.RestSec</td>
+                <td>@item.Rounds</td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+<form asp-action="Start" asp-route-id="@Model.Set.SetID" method="post">
+    @Html.AntiForgeryToken()
+    <button type="submit" class="btn btn-success">以此課表開始訓練</button>
+</form>
+<a asp-action="Index" class="btn btn-secondary">返回清單</a>

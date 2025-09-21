@@ -51,33 +51,25 @@
 <div class="card mb-4">
     <div class="card-header">結束訓練</div>
     <div class="card-body">
-        <form asp-action="Complete" method="post" class="row g-3">
+        <form asp-action="Complete" asp-route-id="@Model.SessionID" method="post" class="mt-3">
             @Html.AntiForgeryToken()
-            <input type="hidden" name="id" value="@Model.SessionID" />
-
-            <div class="col-12 col-md-4">
-                <label class="form-label">消耗卡路里 (kcal)</label>
-                <input type="number" class="form-control" name="calories" min="0" step="1" @(isCompleted ? "disabled" : null) />
+            <div class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">消耗卡路里 (kcal)</label>
+                    <input name="calories" type="number" class="form-control" value="@Model.CaloriesBurned" />
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">獲得點數</label>
+                    <input name="points" type="number" class="form-control" value="@Model.PointsAwarded" />
+                </div>
+                <div class="col-12">
+                    <label class="form-label">備註</label>
+                    <textarea name="note" class="form-control">@Model.Notes</textarea>
+                </div>
             </div>
-
-            <div class="col-12 col-md-4">
-                <label class="form-label">獲得點數</label>
-                <input type="number" class="form-control" name="points" min="0" step="1" @(isCompleted ? "disabled" : null) />
-            </div>
-
-            <div class="col-12">
-                <label class="form-label">備註</label>
-                <textarea class="form-control" name="note" rows="2" placeholder="想記錄些什麼？" @(isCompleted ? "disabled" : null)></textarea>
-            </div>
-
-            <div class="col-12 d-flex gap-2">
-                <a class="btn btn-outline-secondary" asp-action="Index">回清單</a>
-                <button type="submit" class="btn btn-danger" @(isCompleted ? "disabled" : null)
-                        onclick="return confirm('確定要結束這場訓練嗎？');">
-                    結束訓練
-                </button>
-            </div>
+            <button type="submit" class="btn btn-primary mt-3">儲存變更</button>
         </form>
+
 
         @if (isCompleted)
         {

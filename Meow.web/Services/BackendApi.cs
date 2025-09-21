@@ -37,6 +37,47 @@ namespace Meow.Web.Services
         }
 
 
+        public async Task<IReadOnlyList<TagDto>> GetTagsAsync(string? keyword)
+        {
+            var url = string.IsNullOrWhiteSpace(keyword)
+                ? "api/Tags"
+                : QueryHelpers.AddQueryString("api/Tags", new Dictionary<string, string?> { ["keyword"] = keyword });
+
+            return await _http.GetFromJsonAsync<List<TagDto>>(url) ?? new List<TagDto>();
+        }
+
+        public async Task<TagDto> CreateTagAsync(TagCreateDto dto)
+        {
+            var resp = await _http.PostAsJsonAsync("api/Tags", dto);
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                throw new ApplicationException($"CreateTag failed: {(int)resp.StatusCode} {resp.StatusCode}\n{body}");
+            }
+            return (await resp.Content.ReadFromJsonAsync<TagDto>())!;
+        }
+
+        public async Task UpdateTagAsync(Guid tagId, TagUpdateDto dto)
+        {
+            var resp = await _http.PutAsJsonAsync($"api/Tags/{tagId}", dto);
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                throw new ApplicationException($"UpdateTag failed: {(int)resp.StatusCode} {resp.StatusCode}\n{body}");
+            }
+        }
+
+        public async Task DeleteTagAsync(Guid tagId)
+        {
+            var resp = await _http.DeleteAsync($"api/Tags/{tagId}");
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                throw new ApplicationException($"DeleteTag failed: {(int)resp.StatusCode} {resp.StatusCode}\n{body}");
+            }
+        }
+
+
         // 供「前台 Members 清單頁」使用
         // 非同步地取得全部會員清單
         public async Task<IEnumerable<MemberDto>> GetMembersAsync()
@@ -344,27 +385,20 @@ namespace Meow.Web.Services
 
 
         public async Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(
-            string? keyword = null,
-            string? status = null,
-            IEnumerable<Guid>? tagIds = null)
+            string? keyword = null, string? status = null, IEnumerable<Guid>? tagIds = null)
         {
-            var qs = new Dictionary<string, string?>();
-
-            if (!string.IsNullOrWhiteSpace(keyword)) qs["keyword"] = keyword;
-            if (!string.IsNullOrWhiteSpace(status)) qs["status"] = status;
-            if (tagIds is not null)
+            var qs = new List<string>();
+            if (!string.IsNullOrWhiteSpace(keyword)) qs.Add($"keyword={Uri.EscapeDataString(keyword)}");
+            if (!string.IsNullOrWhiteSpace(status)) qs.Add($"status={Uri.EscapeDataString(status)}");
+            if (tagIds != null && tagIds.Any())
             {
-                var tokens = tagIds.Where(id => id != Guid.Empty)
-                                   .Distinct()
-                                   .Select(g => g.ToString());
-                if (tokens.Any()) qs["tagIds"] = string.Join(",", tokens);
+                var joined = string.Join(",", tagIds);
+                qs.Add($"tagIds={Uri.EscapeDataString(joined)}");
             }
-
-            var url = QueryHelpers.AddQueryString("api/TrainingVideos", qs);
-            // 後端 GET 應投影成 ListItemDto（請確認已從舊 TrainingVideoDto 改為 ListItemDto）
-            var list = await _http.GetFromJsonAsync<List<TrainingVideoListItemDto>>(url);
-            return list ?? new List<TrainingVideoListItemDto>();
+            var url = "api/TrainingVideos" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
+            return await _http.GetFromJsonAsync<IReadOnlyList<TrainingVideoListItemDto>>(url) ?? Array.Empty<TrainingVideoListItemDto>();
         }
+
 
         public async Task UpdateTrainingVideoStatusAsync(Guid videoId, string status)
         {
@@ -381,9 +415,10 @@ namespace Meow.Web.Services
         }
 
 
-        public async Task<TrainingVideoDetailDto?> GetTrainingVideoAsync(Guid id)
-            => await _http.GetFromJsonAsync<TrainingVideoDetailDto>($"api/TrainingVideos/{id}");
-
+        public async Task<TrainingVideoDetailDto> GetTrainingVideoAsync(Guid id)
+        {
+            return await _http.GetFromJsonAsync<TrainingVideoDetailDto>($"api/TrainingVideos/{id}");
+        }
 
         public async Task<TrainingVideoDetailDto> CreateTrainingVideoAsync(TrainingVideoCreateDto dto)
         {
@@ -398,6 +433,25 @@ namespace Meow.Web.Services
             var resp = await _http.PutAsJsonAsync($"api/TrainingVideos/{dto.VideoId}", dto);
             resp.EnsureSuccessStatusCode();
             return (await resp.Content.ReadFromJsonAsync<TrainingVideoDetailDto>())!;
+        }
+
+
+        public async Task<TrainingSetDetailDto> GetTrainingSetAsync(Guid id)
+            => await _http.GetFromJsonAsync<TrainingSetDetailDto>($"api/TrainingSets/{id}");
+
+
+        public async Task<TrainingSetDetailDto> CreateTrainingSetAsync(TrainingSetCreateDto dto)
+        {
+            var resp = await _http.PostAsJsonAsync("api/TrainingSets", dto);
+            resp.EnsureSuccessStatusCode();
+            return (await resp.Content.ReadFromJsonAsync<TrainingSetDetailDto>())!;
+        }
+
+
+        public async Task UpdateTrainingVideoTagsAsync(Guid id, IEnumerable<Guid> tagIds)
+        {
+            var resp = await _http.PutAsJsonAsync($"api/TrainingVideos/{id}/tags", tagIds);
+            resp.EnsureSuccessStatusCode();
         }
     }
 }

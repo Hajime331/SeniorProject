@@ -1,7 +1,8 @@
-﻿using Microsoft.AspNetCore.Authorization;
-using Microsoft.AspNetCore.Mvc;
+﻿using Meow.Shared.Dtos.Videos;
 using Meow.Web.Services;
 using Meow.Web.ViewModels.TrainingVideos;
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 
 [Authorize]
 public class TrainingVideosController : Controller
@@ -49,5 +50,66 @@ public class TrainingVideosController : Controller
             return Redirect(returnUrl);
 
         return RedirectToAction(nameof(Index));
+    }
+
+
+    [HttpGet]
+    public async Task<IActionResult> Create()
+    {
+        var tags = await _api.GetTagsAsync();
+        var vm = new TrainingVideoCreateVm
+        {
+            AllTags = tags.ToList(),
+            Status = "Draft"
+        };
+        return View(vm);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> Create(TrainingVideoCreateVm model)
+    {
+        // 基本驗證
+        if (string.IsNullOrWhiteSpace(model.Title))
+            ModelState.AddModelError(nameof(model.Title), "請輸入標題");
+        if (string.IsNullOrWhiteSpace(model.BodyPart))
+            ModelState.AddModelError(nameof(model.BodyPart), "請選擇部位");
+        if (string.IsNullOrWhiteSpace(model.Url))
+            ModelState.AddModelError(nameof(model.Url), "請輸入影片連結");
+        if (model.DurationSec <= 0)
+            ModelState.AddModelError(nameof(model.DurationSec), "請輸入正確的秒數");
+        if (!ModelState.IsValid)
+        {
+            model.AllTags = (await _api.GetTagsAsync()).ToList();
+            return View(model);
+        }
+
+        var dto = new TrainingVideoCreateDto(
+            model.Title.Trim(),
+            model.BodyPart.Trim(),
+            model.Url.Trim(),
+            model.DurationSec,
+            model.Status.Trim(),
+            model.SelectedTagIds ?? new List<Guid>(),
+            model.ThumbnailUrl
+        );
+
+        await _api.CreateTrainingVideoAsync(dto);
+        TempData["Ok"] = "已建立影片。";
+        return RedirectToAction(nameof(Index));
+    }
+
+    [HttpGet]
+    public async Task<IActionResult> Details(Guid id)
+    {
+        var video = await _api.GetTrainingVideoAsync(id);
+        if (video == null) return NotFound();
+        var tags = await _api.GetTagsAsync();
+        var vm = new TrainingVideoDetailVm
+        {
+            Video = video,
+            AllTags = tags.ToList()
+        };
+        return View(vm);
     }
 }

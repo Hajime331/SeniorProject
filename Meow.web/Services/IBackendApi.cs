@@ -21,6 +21,17 @@ namespace Meow.Web.Services
         // Tag API
         Task<IReadOnlyList<TagDto>> GetTagsAsync();
 
+        // 新增：支援 keyword 的搜尋
+        Task<IReadOnlyList<TagDto>> GetTagsAsync(string? keyword);
+
+        // 新增：建立 / 更新 / 刪除
+        Task<TagDto> CreateTagAsync(TagCreateDto dto);
+
+
+        Task UpdateTagAsync(Guid tagId, TagUpdateDto dto);
+
+
+        Task DeleteTagAsync(Guid tagId);
 
 
         // 供「前台 Members 清單頁」使用
@@ -112,13 +123,35 @@ namespace Meow.Web.Services
         Task<IReadOnlyList<TrainingSetListItemDto>> GetTrainingSetsAsync(string? keyword = null, string? status = "Active");
 
 
-        // TrainingVideos
+        // 影片查詢（支援 keyword/status/tagIds，多選 tagIds 以逗號字串）
         Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(
-            string? keyword = null,
-            string? status = null,
-            IEnumerable<Guid>? tagIds = null);
+            string? keyword = null, string? status = null, IEnumerable<Guid>? tagIds = null);
 
-        Task UpdateTrainingVideoStatusAsync(Guid videoId, string status);
+        Task UpdateTrainingVideoTagsAsync(Guid id, IEnumerable<Guid> tagIds);
+
+
+        // 取得單一影片詳情
+        Task<TrainingVideoDetailDto> GetTrainingVideoAsync(Guid id);
+
+
+        // 影片更新
+        Task<TrainingVideoDetailDto> UpdateTrainingVideoAsync(TrainingVideoUpdateDto dto);
+
+
+
+        // 更新影片（用於未來擴充）
+        Task UpdateTrainingVideoStatusAsync(Guid id, string status);
+
+
+        // 取得單一課表詳情
+        Task<TrainingSetDetailDto> GetTrainingSetAsync(Guid id);
+
+
+        // 建立課表
+        Task<TrainingSetDetailDto> CreateTrainingSetAsync(TrainingSetCreateDto dto);
+
+        // 建立影片
+        Task<TrainingVideoDetailDto> CreateTrainingVideoAsync(TrainingVideoCreateDto dto);
 
     }
 }

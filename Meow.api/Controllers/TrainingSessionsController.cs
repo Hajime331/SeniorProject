@@ -60,7 +60,7 @@ public class TrainingSessionsController : ControllerBase
         // 2) Tag 篩選（OR 邏輯）
         if (guidSet.Count > 0)
         {
-            q = q.Where(s => _db.SetTagMaps.Any(m => m.SetId == s.SetID && guidSet.Contains(m.TagId)));
+            q = q.Where(s => _db.SetTagMaps.Any(m => m.SetID == s.SetID && guidSet.Contains(m.TagID)));
         }
 
         var total = await q.CountAsync();
@@ -81,7 +81,7 @@ public class TrainingSessionsController : ControllerBase
             )
             {
                 TagNames = _db.SetTagMaps
-                    .Where(m => m.SetId == s.SetID)
+                    .Where(m => m.SetID == s.SetID)
                     .Select(m => m.Tag.Name)
                     .ToList()
             })
@@ -110,7 +110,7 @@ public class TrainingSessionsController : ControllerBase
             .AsNoTracking()
             .Include(s => s.TrainingSetItems)
             .ThenInclude(i => i.Video)
-            .FirstOrDefaultAsync(s => s.SetId == dto.SetID);
+            .FirstOrDefaultAsync(s => s.SetID == dto.SetID);
 
         if (set is null) return NotFound("TrainingSet not found.");
 
@@ -119,7 +119,7 @@ public class TrainingSessionsController : ControllerBase
         {
             SessionID = Guid.NewGuid(),
             MemberID = memberId,
-            SetID = set.SetId,
+            SetID = set.SetID,
             StartedAt = DateTime.UtcNow,
             CompletedFlag = false,
             Notes = dto.Notes,
@@ -134,8 +134,8 @@ public class TrainingSessionsController : ControllerBase
             {
                 SessionItemID = Guid.NewGuid(),
                 SessionID = session.SessionID,
-                SetItemID = si.SetItemId,
-                VideoId = si.VideoId,
+                SetItemID = si.SetItemID,
+                VideoID = si.VideoID,
                 OrderNo = si.OrderNo,
                 Status = "Done", // 預設；之後可依 UI 改
                 ActualReps = null,
@@ -172,7 +172,7 @@ public class TrainingSessionsController : ControllerBase
                     {
                         SessionItemID = i.SessionItemID,
                         SetItemID = i.SetItemID,
-                        VideoId = i.VideoId,
+                        VideoId = i.VideoID,
                         OrderNo = i.OrderNo,
                         Status = i.Status,
                         ActualReps = i.ActualReps,
@@ -216,7 +216,7 @@ public class TrainingSessionsController : ControllerBase
                     {
                         SessionItemID = i.SessionItemID,
                         SetItemID = i.SetItemID,
-                        VideoId = i.VideoId,
+                        VideoId = i.VideoID,
                         OrderNo = i.OrderNo,
                         Status = i.Status,
                         ActualReps = i.ActualReps,
@@ -295,7 +295,7 @@ public class TrainingSessionsController : ControllerBase
         {
             SessionItemID = item.SessionItemID,
             SetItemID = item.SetItemID,
-            VideoId = item.VideoId,
+            VideoId = item.VideoID,
             OrderNo = item.OrderNo,
             Status = item.Status,
             ActualReps = item.ActualReps,

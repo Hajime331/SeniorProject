@@ -7,10 +7,11 @@ using Microsoft.EntityFrameworkCore;
 namespace Meow.Api.Data;
 
 [Table("TrainingVideo")]
+[Index("CreatedAt", Name = "IX_TrainingVideo_CreatedAt", AllDescending = true)]
 public partial class TrainingVideo
 {
     [Key]
-    public Guid VideoId { get; set; }
+    public Guid VideoID { get; set; }
 
     [StringLength(150)]
     public string Title { get; set; } = null!;
@@ -31,6 +32,11 @@ public partial class TrainingVideo
 
     [Precision(0)]
     public DateTime UpdatedAt { get; set; }
+
+    public Guid? CreatedByMemberID { get; set; }
+
+    [StringLength(500)]
+    public string? ThumbnailUrl { get; set; }
 
     [InverseProperty("Video")]
     public virtual ICollection<TrainingSessionItem> TrainingSessionItems { get; set; } = new List<TrainingSessionItem>();

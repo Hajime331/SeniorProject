@@ -1,0 +1,132 @@
+﻿@model Meow.Web.ViewModels.TrainingSets.TrainingSetCreateVm
+@using Microsoft.AspNetCore.Mvc.Rendering
+@using Meow.Shared.Dtos.Videos
+
+@{
+    ViewData["Title"] = "新增課表";
+}
+
+<h2>新增課表</h2>
+
+<form asp-action="Create" method="post">
+    <div class="mb-3">
+        <label asp-for="Name" class="form-label"></label>
+        <input asp-for="Name" class="form-control" />
+        <span asp-validation-for="Name" class="text-danger"></span>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="BodyPart" class="form-label"></label>
+        <select asp-for="BodyPart" class="form-select">
+            <option value="手臂">手臂</option>
+            <option value="下半身">下半身</option>
+            <option value="核心">核心</option>
+            <option value="上半身">上半身</option>
+            <option value="全身">全身</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Equipment" class="form-label"></label>
+        <select asp-for="Equipment" class="form-select">
+            <option value="無器材">無器材</option>
+            <option value="啞鈴">啞鈴</option>
+            <option value="槓鈴">槓鈴</option>
+            <option value="彈力帶">彈力帶</option>
+            <option value="壺鈴">壺鈴</option>
+            <option value="機械">機械</option>
+        </select>
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="Difficulty" class="form-label"></label>
+        <input asp-for="Difficulty" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label asp-for="EstimatedDurationSec" class="form-label"></label>
+        <input asp-for="EstimatedDurationSec" type="number" class="form-control" />
+    </div>
+
+    <div class="mb-3">
+        <label class="form-label">標籤</label><br />
+        @foreach (var tag in Model.AllTags)
+        {
+            <div class="form-check form-check-inline">
+                <input class="form-check-input" type="checkbox" name="SelectedTagIds" value="@tag.TagId" @(Model.SelectedTagIds.Contains(tag.TagId) ? "checked" : "") />
+                <label class="form-check-label">@tag.Name</label>
+            </div>
+        }
+    </div>
+
+    <h4>課表項目</h4>
+    <table class="table" id="itemsTable">
+        <thead>
+            <tr>
+                <th style="width:30%">影片</th>
+                <th style="width:10%">順序</th>
+                <th style="width:15%">Reps</th>
+                <th style="width:15%">Rest</th>
+                <th style="width:15%">Rounds</th>
+                <th style="width:15%"></th>
+            </tr>
+        </thead>
+        <tbody>
+            @for (int i = 0; i < Model.Items.Count; i++)
+            {
+                <tr>
+                    <td>
+                        <select asp-for="Items[i].VideoId"
+                                class="form-select"
+                                asp-items="@(new SelectList(Model.AllVideos, nameof(TrainingVideoListItemDto.VideoId), nameof(TrainingVideoListItemDto.Title), Model.Items[i].VideoId))">
+                            <option value="">-- 請選擇影片 --</option>
+                        </select>
+
+                    </td>
+                    <td><input class="form-control" type="number" name="Items[@i].OrderNo" value="@Model.Items[i].OrderNo" /></td>
+                    <td><input class="form-control" type="number" name="Items[@i].TargetReps" value="@Model.Items[i].TargetReps" /></td>
+                    <td><input class="form-control" type="number" name="Items[@i].RestSec" value="@Model.Items[i].RestSec" /></td>
+                    <td><input class="form-control" type="number" name="Items[@i].Rounds" value="@Model.Items[i].Rounds" /></td>
+                    <td><button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">刪除</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <button type="button" class="btn btn-secondary mb-3" onclick="addRow()">新增項目</button>
+    <br />
+    <button type="submit" class="btn btn-primary">建立課表</button>
+    <a asp-action="Index" class="btn btn-secondary">返回清單</a>
+</form>
+
+@section Scripts {
+    <script>
+        function addRow() {
+            var tableBody = document.getElementById('itemsTable').getElementsByTagName('tbody')[0];
+            var index = tableBody.rows.length;
+            var newRow = tableBody.insertRow();
+
+            // 影片選單
+            var cell0 = newRow.insertCell(0);
+            var selectHtml = '<select class="form-select" name="Items[' + index + '].VideoId">';
+            @foreach (var v in Model.AllVideos)
+            {
+                    <text>selectHtml += '<option value="@v.VideoId">@v.Title</option>';</text>
+            }
+            selectHtml += '</select>';
+            cell0.innerHTML = selectHtml;
+
+            // 其餘欄位
+            newRow.insertCell(1).innerHTML = '<input class="form-control" type="number" name="Items[' + index + '].OrderNo" />';
+            newRow.insertCell(2).innerHTML = '<input class="form-control" type="number" name="Items[' + index + '].TargetReps" />';
+            newRow.insertCell(3).innerHTML = '<input class="form-control" type="number" name="Items[' + index + '].RestSec" />';
+            newRow.insertCell(4).innerHTML = '<input class="form-control" type="number" name="Items[' + index + '].Rounds" />';
+            newRow.insertCell(5).innerHTML = '<button type="button" class="btn btn-danger btn-sm" onclick="removeRow(this)">刪除</button>';
+        }
+
+        function removeRow(btn) {
+            var row = btn.closest('tr');
+            row.parentNode.removeChild(row);
+        }
+    </script>
+}

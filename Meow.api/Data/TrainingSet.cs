@@ -10,7 +10,7 @@ namespace Meow.Api.Data;
 public partial class TrainingSet
 {
     [Key]
-    public Guid SetId { get; set; }
+    public Guid SetID { get; set; }
 
     [StringLength(120)]
     public string Name { get; set; } = null!;
@@ -28,7 +28,7 @@ public partial class TrainingSet
 
     public bool IsCustom { get; set; }
 
-    public Guid? OwnerMemberId { get; set; }
+    public Guid? OwnerMemberID { get; set; }
 
     [StringLength(16)]
     public string Status { get; set; } = null!;
@@ -51,5 +51,4 @@ public partial class TrainingSet
 
     [InverseProperty("Set")]
     public virtual ICollection<TrainingSetItem> TrainingSetItems { get; set; } = new List<TrainingSetItem>();
-
 }

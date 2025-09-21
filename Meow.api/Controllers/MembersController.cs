@@ -1,5 +1,7 @@
 ﻿using Meow.Api.Data;
 using Meow.Shared.Dtos.Accounts;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -69,7 +71,7 @@ namespace Meow.Api.Controllers
         [ProducesResponseType(StatusCodes.Status409Conflict)]
 
         // 明確宣告 body 來的 JSON
-        public async Task<IActionResult> Create([FromBody] MemberCreateDto input) 
+        public async Task<IActionResult> Create([FromBody] MemberCreateDto input)
         {
             // 1. 標準化 Email：去頭尾空白、統一小寫，用來檢查重複
             var normalized = input.Email.Trim().ToLowerInvariant();
@@ -133,15 +135,34 @@ namespace Meow.Api.Controllers
             var m = await _db.Members
                 .FirstOrDefaultAsync(x => x.EmailNormalized == normalized);
 
-            // 不要暴露「帳號不存在」細節，統一回 401
             if (m is null || !BCrypt.Net.BCrypt.Verify(input.Password, m.PasswordHash))
                 return Unauthorized(new { message = "Email 或密碼不正確" });
 
-            // （可選）更新最後登入時間
             m.LastLoginAt = DateTime.UtcNow;
             await _db.SaveChangesAsync();
 
-            // 回傳給前端可用的安全欄位
+            // ★ 建立 Claims
+            var claims = new List<Claim>
+            {
+                new Claim("memberId", m.MemberID.ToString()),
+                new Claim(ClaimTypes.NameIdentifier, m.MemberID.ToString()),
+                new Claim(ClaimTypes.Name, string.IsNullOrWhiteSpace(m.Nickname) ? m.Email : m.Nickname),
+                new Claim("isAdmin", m.IsAdmin ? "true" : "false"),
+            };
+
+            if (m.IsAdmin)
+            {
+                claims.Add(new Claim(ClaimTypes.Role, "Admin")); // ★ 這行很關鍵
+            }
+
+            var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+
+            var principal = new ClaimsPrincipal(identity);
+
+            await HttpContext.SignInAsync(CookieAuthenticationDefaults.AuthenticationScheme, principal, new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddDays(14) });
+
+
+            // ★ 回傳 DTO（原本就有）
             var dto = new MemberListItemDto
             {
                 MemberID = m.MemberID,
@@ -152,7 +173,6 @@ namespace Meow.Api.Controllers
                 IsAdmin = m.IsAdmin,
                 LastLoginAt = m.LastLoginAt
             };
-
             return Ok(dto);
         }
 

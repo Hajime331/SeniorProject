@@ -1,0 +1,32 @@
+﻿@model Meow.Web.ViewModels.TrainingVideos.TrainingVideoDetailVm
+@{
+    ViewData["Title"] = "影片詳情";
+    var tagMap = Model.AllTags.ToDictionary(t => t.TagId, t => t.Name);
+}
+
+<h2>@Model.Video.Title</h2>
+
+<p>部位：@Model.Video.BodyPart</p>
+<p>影片長度：@Model.Video.DurationSec 秒</p>
+<p>狀態：@Model.Video.Status</p>
+<p>建立時間：@Model.Video.CreatedAt.ToLocalTime()</p>
+<p>更新時間：@Model.Video.UpdatedAt.ToLocalTime()</p>
+
+@if (Model.Video.TagIds?.Any() == true)
+{
+    <p>
+        標籤：
+        @foreach (var tid in Model.Video.TagIds)
+        {
+            if (tagMap.TryGetValue(tid, out var name))
+            {
+                <span class="badge bg-primary me-1">@name</span>
+            }
+        }
+    </p>
+}
+
+<p>
+    <a href="@Model.Video.Url" target="_blank" class="btn btn-link">觀看影片 ↗</a>
+</p>
+<a asp-action="Index" class="btn btn-secondary">返回清單</a>

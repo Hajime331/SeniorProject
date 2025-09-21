@@ -18,7 +18,7 @@ public partial class TrainingSessionItem
 
     public Guid SetItemID { get; set; }
 
-    public Guid VideoId { get; set; }
+    public Guid VideoID { get; set; }
 
     public int OrderNo { get; set; }
 
@@ -47,7 +47,7 @@ public partial class TrainingSessionItem
     [InverseProperty("TrainingSessionItems")]
     public virtual TrainingSetItem SetItem { get; set; } = null!;
 
-    [ForeignKey("VideoId")]
+    [ForeignKey("VideoID")]
     [InverseProperty("TrainingSessionItems")]
     public virtual TrainingVideo Video { get; set; } = null!;
 }

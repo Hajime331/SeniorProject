@@ -6,6 +6,10 @@ namespace Meow.Api.Data;
 
 public partial class AppDbContext : DbContext
 {
+    public AppDbContext()
+    {
+    }
+
     public AppDbContext(DbContextOptions<AppDbContext> options)
         : base(options)
     {
@@ -60,6 +64,9 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<TrainingVideo> TrainingVideos { get; set; }
 
     public virtual DbSet<VideoTagMap> VideoTagMaps { get; set; }
+
+    protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
+        => optionsBuilder.UseSqlServer("Name=AppDb");
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -253,22 +260,8 @@ public partial class AppDbContext : DbContext
         modelBuilder.Entity<Tag>(entity =>
         {
             entity.Property(e => e.TagID).HasDefaultValueSql("(newid())");
-
-            entity.Property(e => e.Category)
-                  .IsRequired()
-                  .HasMaxLength(20)
-                  .HasDefaultValue("一般");
-
-            entity.HasIndex(e => e.Category)
-                  .HasDatabaseName("IX_Tag_Category");
-
-            entity.ToTable(t =>
-            {
-                t.HasCheckConstraint("CK_Tag_Category", "[Category] IN (N'部位', N'一般')");
-            });
-
+            entity.Property(e => e.Category).HasDefaultValue("一般");
         });
-
 
         modelBuilder.Entity<TimerTemplate>(entity =>
         {
@@ -313,7 +306,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<TrainingSet>(entity =>
         {
-            entity.Property(e => e.SetId).HasDefaultValueSql("(newid())");
+            entity.Property(e => e.SetID).HasDefaultValueSql("(newid())");
             entity.Property(e => e.BodyPart).HasDefaultValue("全身");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.Equipment).HasDefaultValue("無器材");
@@ -324,7 +317,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<TrainingSetItem>(entity =>
         {
-            entity.Property(e => e.SetItemId).HasDefaultValueSql("(newid())");
+            entity.Property(e => e.SetItemID).HasDefaultValueSql("(newid())");
 
             entity.HasOne(d => d.Set).WithMany(p => p.TrainingSetItems).HasConstraintName("FK_TrainingSetItem_Set");
 
@@ -335,7 +328,7 @@ public partial class AppDbContext : DbContext
 
         modelBuilder.Entity<TrainingVideo>(entity =>
         {
-            entity.Property(e => e.VideoId).HasDefaultValueSql("(newid())");
+            entity.Property(e => e.VideoID).HasDefaultValueSql("(newid())");
             entity.Property(e => e.CreatedAt).HasDefaultValueSql("(sysutcdatetime())");
             entity.Property(e => e.UpdatedAt).HasDefaultValueSql("(sysutcdatetime())");
         });

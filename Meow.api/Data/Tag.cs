@@ -7,6 +7,7 @@ using Microsoft.EntityFrameworkCore;
 namespace Meow.Api.Data;
 
 [Table("Tag")]
+[Index("Category", Name = "IX_Tag_Category")]
 [Index("Name", Name = "UQ_Tag_Name", IsUnique = true)]
 public partial class Tag
 {
@@ -15,6 +16,9 @@ public partial class Tag
 
     [StringLength(100)]
     public string Name { get; set; } = null!;
+
+    [StringLength(20)]
+    public string Category { get; set; } = null!;
 
     [InverseProperty("Tag")]
     public virtual ICollection<CookieTagMap> CookieTagMaps { get; set; } = new List<CookieTagMap>();
