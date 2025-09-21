@@ -10,7 +10,7 @@
     <nav class="navbar navbar-expand navbar-dark bg-dark">
         <div class="container-fluid">
             <!-- 連到後台首頁 -->
-            <a class="navbar-brand" asp-area="Admin" asp-controller="Dashboard" asp-action="Index">Admin</a>
+            <a class="navbar-brand" asp-area="Admin" asp-controller="Home" asp-action="Index">Admin</a>
 
             <div class="navbar-nav">
                 <!-- 後台儀表板 -->
@@ -18,15 +18,6 @@
 
                 <!-- 熱門訓練組合排行 -->
                 <a class="nav-link" asp-area="Admin" asp-controller="Dashboard" asp-action="PopularSets">熱門訓練組合排行</a>
-
-                <!-- 功能管理 -->
-                <a class="nav-link" asp-area="Admin" asp-controller="Tags" asp-action="Index">標籤管理</a>
-
-
-                <a class="nav-link" asp-area="" asp-controller="TrainingVideos" asp-action="Index">影片清單</a>
-
-
-                <a class="nav-link" asp-area="" asp-controller="TrainingSets" asp-action="Index">課表清單</a>
 
                 <!-- 回前台（首頁） -->
                 <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">回前台</a>
