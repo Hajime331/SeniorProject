@@ -1,0 +1,168 @@
+﻿@model TrainingSetEditViewModel
+@{
+    ViewData["Title"] = "Create Training Set";
+}
+<h2 class="mb-3">新增課表</h2>
+
+<form method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label asp-for="Name" class="form-label"></label>
+            <input asp-for="Name" class="form-control" />
+            <span asp-validation-for="Name" class="text-danger"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="BodyPart" class="form-label"></label>
+            <input asp-for="BodyPart" class="form-control" placeholder="如：全身 / 胸 / 腿 ..." />
+        </div>
+        <div class="col-md-3">
+            <label asp-for="Equipment" class="form-label"></label>
+            <input asp-for="Equipment" class="form-control" placeholder="如：無器材 / 啞鈴 ..." />
+        </div>
+
+        <div class="col-md-3">
+            <label asp-for="Difficulty" class="form-label"></label>
+            <input asp-for="Difficulty" class="form-control" placeholder="如：Beginner / Hard" />
+        </div>
+        <div class="col-md-3">
+            <label asp-for="EstimatedDurationSec" class="form-label"></label>
+            <input asp-for="EstimatedDurationSec" class="form-control" type="number" min="0" />
+        </div>
+
+        <div class="col-12">
+            <label class="form-label">標籤（可多選）</label>
+            <select id="tagIds" name="TagIds" class="form-select" multiple size="6">
+                @* 由 JS 以 /api/Tags 載入選項 *@
+            </select>
+            <small class="text-muted">按住 Ctrl 或 Shift 可多選（桌面）。之後可換成更漂亮的多選元件。</small>
+        </div>
+
+    </div>
+
+    <hr class="my-4" />
+    <h5 class="mb-2">課表項目（Items）</h5>
+
+    <div id="items"></div>
+
+    <button type="button" class="btn btn-outline-secondary mt-2" onclick="addItem()">＋ 新增一個項目</button>
+
+    <div class="mt-4 d-flex gap-2">
+        <button class="btn btn-primary" type="submit">儲存</button>
+        <a class="btn btn-secondary" asp-area="Admin" asp-controller="TrainingSets" asp-action="Index">返回列表</a>
+    </div>
+
+</form>
+
+<template id="item-row">
+    <div class="card mb-2 p-3 item-row">
+        <div class="row g-2 align-items-end">
+            <div class="col-md-4">
+                <label class="form-label">VideoId (GUID)</label>
+                <input class="form-control" name="Items[index].VideoId" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">OrderNo</label>
+                <input class="form-control" name="Items[index].OrderNo" type="number" min="1" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">TargetReps</label>
+                <input class="form-control" name="Items[index].TargetReps" type="number" min="0" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">RestSec</label>
+                <input class="form-control" name="Items[index].RestSec" type="number" min="0" />
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">Rounds</label>
+                <input class="form-control" name="Items[index].Rounds" type="number" min="0" />
+            </div>
+        </div>
+        <div class="mt-2 text-end">
+            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItem(this)">移除</button>
+        </div>
+    </div>
+</template>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        let itemCount = 0;
+
+        function addItem(data) {
+            const tpl = document.getElementById('item-row').content.cloneNode(true);
+            tpl.querySelectorAll('input[name]').forEach(inp => {
+                inp.name = inp.name.replace('index', itemCount);
+            });
+            // 若有預設值
+            if (data) {
+                tpl.querySelector(`input[name="Items[${itemCount}].VideoId"]`).value = data.videoId || '';
+                tpl.querySelector(`input[name="Items[${itemCount}].OrderNo"]`).value = data.orderNo ?? '';
+                tpl.querySelector(`input[name="Items[${itemCount}].TargetReps"]`).value = data.targetReps ?? '';
+                tpl.querySelector(`input[name="Items[${itemCount}].RestSec"]`).value = data.restSec ?? '';
+                tpl.querySelector(`input[name="Items[${itemCount}].Rounds"]`).value = data.rounds ?? '';
+            }
+            document.getElementById('items').appendChild(tpl);
+            itemCount++;
+        }
+
+        function removeItem(btn){
+            btn.closest('.item-row').remove();
+        }
+
+        // 提交前把 TagIdsCsv 轉成真正的 name="TagIds" 的多值欄位
+        document.querySelector('form').addEventListener('submit', e => {
+            const csv = document.querySelector('input[name="TagIdsCsv"]').value.trim();
+            const container = document.querySelector('input[name="TagIds"]').parentElement;
+            document.querySelectorAll('input[name="TagIds"]').forEach(x=>x.remove());
+            if (csv) {
+                csv.split(',').map(s => s.trim()).forEach((g, i) => {
+                    const hidden = document.createElement('input');
+                    hidden.type = 'hidden';
+                    hidden.name = 'TagIds';
+                    hidden.value = g;
+                    container.appendChild(hidden);
+                });
+            } else {
+                const hidden = document.createElement('input');
+                hidden.type = 'hidden';
+                hidden.name = 'TagIds';
+                hidden.value = '';
+                container.appendChild(hidden);
+            }
+        });
+
+        async function loadTags(selected = []) {
+            try {
+                // 你已有的 Tag API，可過濾 Active
+                const res = await fetch('/api/Tags?status=Active');
+                if (!res.ok) throw new Error('load tags failed');
+                const data = await res.json();
+
+                // 依你的 DTO 欄位調整：預設用 tagId/name
+                const sel = document.getElementById('tagIds');
+                sel.innerHTML = '';
+
+                data.forEach(t => {
+                    const opt = document.createElement('option');
+                    opt.value = t.tagId;       // 若是 t.id -> 改成 t.id
+                    opt.textContent = t.name;  // 若是 t.title -> 改成 t.title
+                    if (selected.includes(t.tagId)) opt.selected = true;
+                    sel.appendChild(opt);
+                });
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Create 頁：Model.TagIds 可能為空陣列；Edit 頁：可帶既有值預選
+            const preSelected = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model?.TagIds ?? new List<Guid>()));
+            loadTags(preSelected);
+        });
+
+        // 給一個預設空項目
+        addItem();
+    </script>
+}

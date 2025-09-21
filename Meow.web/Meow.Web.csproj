@@ -1,18 +1,18 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
+    <Compile Remove="Areas\Admin\Models\**" />
     <Compile Remove="Dtos\**" />
+    <Content Remove="Areas\Admin\Models\**" />
     <Content Remove="Dtos\**" />
+    <EmbeddedResource Remove="Areas\Admin\Models\**" />
     <EmbeddedResource Remove="Dtos\**" />
+    <None Remove="Areas\Admin\Models\**" />
     <None Remove="Dtos\**" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Meow.Shared\Meow.Shared.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="Areas\Admin\Models\" />
   </ItemGroup>
 
   <ItemGroup>

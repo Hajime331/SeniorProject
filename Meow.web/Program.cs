@@ -25,6 +25,8 @@ builder.Services.AddAuthorization(options =>
     // options.AddPolicy("AdminOnlyByRole", p => p.RequireRole("Admin"));
 });
 
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddTransient<ForwardAuthCookieHandler>();
 
 // Add services to the container.
 builder.Services.AddControllersWithViews();
@@ -36,7 +38,8 @@ builder.Services.AddHttpClient<Meow.Web.Services.IBackendApi, Meow.Web.Services.
         throw new InvalidOperationException("Missing config: BackendApi:BaseUrl");
     if (!baseUrl.EndsWith("/")) baseUrl += "/"; // 確保結尾有斜線
     client.BaseAddress = new Uri(baseUrl);
-});
+})
+.AddHttpMessageHandler<ForwardAuthCookieHandler>();
 
 
 var app = builder.Build();

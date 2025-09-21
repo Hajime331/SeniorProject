@@ -164,26 +164,6 @@ namespace Meow.Web.Services
         }
 
 
-        /*// 取得會員的訓練紀錄清單（分頁、可篩選日期區間）
-        public async Task<PagedResultDto<TrainingSessionListItemDto>> GetTrainingSessionsAsync(
-        Guid memberId, DateTime? from, DateTime? to, int page, int pageSize)
-        {
-            var qs = new Dictionary<string, string?>
-            {
-                ["memberId"] = memberId.ToString(),
-                ["page"] = page.ToString(CultureInfo.InvariantCulture),
-                ["pageSize"] = pageSize.ToString(CultureInfo.InvariantCulture),
-                // 只在有值時帶上日期（避免後端把 null 當預設）
-                ["from"] = from?.ToString("yyyy-MM-dd"),
-                ["to"] = to?.ToString("yyyy-MM-dd")
-            };
-
-            var url = QueryHelpers.AddQueryString("api/TrainingSessions", qs!);
-            var resp = await _http.GetFromJsonAsync<PagedResultDto<TrainingSessionListItemDto>>(url);
-            return resp!;
-        }*/
-
-
         // 新增：開始新的訓練課表
         public async Task<TrainingSessionDetailDto> StartTrainingSessionAsync(Guid memberId, TrainingSessionCreateDto dto)
         {
@@ -373,30 +353,34 @@ namespace Meow.Web.Services
         }
 
 
-        public async Task<IReadOnlyList<TrainingSetListItemDto>> GetTrainingSetsAsync(string? keyword = null, string? status = "Active")
+        public async Task<IReadOnlyList<TrainingSetListItemDto>> GetTrainingSetsAsync(string? keyword, string? status)
         {
-            var qs = new List<string>();
-            if (!string.IsNullOrWhiteSpace(keyword)) qs.Add("keyword=" + Uri.EscapeDataString(keyword));
-            if (!string.IsNullOrWhiteSpace(status)) qs.Add("status=" + Uri.EscapeDataString(status));
-
-            var url = "api/TrainingSets" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
+            var url = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
+                "api/TrainingSets",
+                new Dictionary<string, string?> { ["keyword"] = keyword, ["status"] = status }
+            );
             return await _http.GetFromJsonAsync<List<TrainingSetListItemDto>>(url) ?? new List<TrainingSetListItemDto>();
         }
 
 
         public async Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(
-            string? keyword = null, string? status = null, IEnumerable<Guid>? tagIds = null)
+            string? keyword, string? status, string? tagIdsCsv)
         {
-            var qs = new List<string>();
-            if (!string.IsNullOrWhiteSpace(keyword)) qs.Add($"keyword={Uri.EscapeDataString(keyword)}");
-            if (!string.IsNullOrWhiteSpace(status)) qs.Add($"status={Uri.EscapeDataString(status)}");
-            if (tagIds != null && tagIds.Any())
-            {
-                var joined = string.Join(",", tagIds);
-                qs.Add($"tagIds={Uri.EscapeDataString(joined)}");
-            }
-            var url = "api/TrainingVideos" + (qs.Count > 0 ? "?" + string.Join("&", qs) : "");
-            return await _http.GetFromJsonAsync<IReadOnlyList<TrainingVideoListItemDto>>(url) ?? Array.Empty<TrainingVideoListItemDto>();
+            var qs = new Dictionary<string, string?>();
+            if (!string.IsNullOrWhiteSpace(keyword)) qs["keyword"] = keyword;
+            if (!string.IsNullOrWhiteSpace(status)) qs["status"] = status;
+            if (!string.IsNullOrWhiteSpace(tagIdsCsv)) qs["tagIds"] = tagIdsCsv; // API 端的參數名就是 tagIds
+
+            var url = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("api/TrainingVideos", qs);
+            return await _http.GetFromJsonAsync<List<TrainingVideoListItemDto>>(url) ?? new List<TrainingVideoListItemDto>();
+        }
+
+        // 多載：吃 List<Guid>，自動轉 CSV 後呼叫上面那支
+        public Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(
+            string? keyword, string? status, IEnumerable<Guid>? tagIds)
+        {
+            string? csv = (tagIds != null) ? string.Join(",", tagIds) : null;
+            return GetTrainingVideosAsync(keyword, status, csv);
         }
 
 
@@ -415,35 +399,54 @@ namespace Meow.Web.Services
         }
 
 
-        public async Task<TrainingVideoDetailDto> GetTrainingVideoAsync(Guid id)
-        {
-            return await _http.GetFromJsonAsync<TrainingVideoDetailDto>($"api/TrainingVideos/{id}");
-        }
+        public Task<TrainingVideoDetailDto?> GetTrainingVideoAsync(Guid id)
+            => _http.GetFromJsonAsync<TrainingVideoDetailDto>($"api/TrainingVideos/{id}");
+
+
 
         public async Task<TrainingVideoDetailDto> CreateTrainingVideoAsync(TrainingVideoCreateDto dto)
         {
             var resp = await _http.PostAsJsonAsync("api/TrainingVideos", dto);
-            resp.EnsureSuccessStatusCode();
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                throw new ApplicationException($"CreateTrainingVideo failed: {(int)resp.StatusCode} {resp.StatusCode}\n{body}");
+            }
             return (await resp.Content.ReadFromJsonAsync<TrainingVideoDetailDto>())!;
         }
+
 
 
         public async Task<TrainingVideoDetailDto> UpdateTrainingVideoAsync(TrainingVideoUpdateDto dto)
         {
             var resp = await _http.PutAsJsonAsync($"api/TrainingVideos/{dto.VideoId}", dto);
-            resp.EnsureSuccessStatusCode();
-            return (await resp.Content.ReadFromJsonAsync<TrainingVideoDetailDto>())!;
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                throw new ApplicationException($"UpdateTrainingVideo failed: {(int)resp.StatusCode} {resp.StatusCode}\n{body}");
+            }
+            if (resp.Content.Headers.ContentLength.GetValueOrDefault() > 0)
+            {
+                var updated = await resp.Content.ReadFromJsonAsync<TrainingVideoDetailDto>();
+                if (updated != null) return updated;
+            }
+            return (await _http.GetFromJsonAsync<TrainingVideoDetailDto>($"api/TrainingVideos/{dto.VideoId}"))!;
         }
 
 
-        public async Task<TrainingSetDetailDto> GetTrainingSetAsync(Guid id)
-            => await _http.GetFromJsonAsync<TrainingSetDetailDto>($"api/TrainingSets/{id}");
+        public Task<TrainingSetDetailDto?> GetTrainingSetAsync(Guid id)
+            => _http.GetFromJsonAsync<TrainingSetDetailDto>($"api/TrainingSets/{id}");
+
 
 
         public async Task<TrainingSetDetailDto> CreateTrainingSetAsync(TrainingSetCreateDto dto)
         {
             var resp = await _http.PostAsJsonAsync("api/TrainingSets", dto);
-            resp.EnsureSuccessStatusCode();
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                throw new ApplicationException($"CreateTrainingSet failed: {(int)resp.StatusCode} {resp.StatusCode}\n{body}");
+            }
             return (await resp.Content.ReadFromJsonAsync<TrainingSetDetailDto>())!;
         }
 
@@ -452,6 +455,50 @@ namespace Meow.Web.Services
         {
             var resp = await _http.PutAsJsonAsync($"api/TrainingVideos/{id}/tags", tagIds);
             resp.EnsureSuccessStatusCode();
+        }
+
+
+        public async Task<TrainingSetDetailDto> UpdateTrainingSetAsync(Guid id, TrainingSetUpdateDto dto)
+        {
+            var resp = await _http.PutAsJsonAsync($"api/TrainingSets/{id}", dto);
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                throw new ApplicationException($"UpdateTrainingSet failed: {(int)resp.StatusCode} {resp.StatusCode}\n{body}");
+            }
+            // API 可能回 200 帶 body，或 204 無 body；兩者都支援
+            if (resp.Content.Headers.ContentLength.GetValueOrDefault() > 0)
+            {
+                var updated = await resp.Content.ReadFromJsonAsync<TrainingSetDetailDto>();
+                if (updated != null) return updated;
+            }
+            // 204 或空 body -> 再 GET 一次
+            return (await _http.GetFromJsonAsync<TrainingSetDetailDto>($"api/TrainingSets/{id}"))!;
+        }
+
+        // 便利多載：沿用 dto.SetId
+        public Task<TrainingSetDetailDto> UpdateTrainingSetAsync(TrainingSetUpdateDto dto)
+            => UpdateTrainingSetAsync(dto.SetId, dto);
+
+
+        public async Task DeleteTrainingSetAsync(Guid id)
+        {
+            var resp = await _http.DeleteAsync($"api/TrainingSets/{id}");
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                throw new ApplicationException($"DeleteTrainingSet failed: {(int)resp.StatusCode} {resp.StatusCode}\n{body}");
+            }
+        }
+
+        public async Task DeleteTrainingVideoAsync(Guid id)
+        {
+            var resp = await _http.DeleteAsync($"api/TrainingVideos/{id}");
+            if (!resp.IsSuccessStatusCode)
+            {
+                var body = await resp.Content.ReadAsStringAsync();
+                throw new ApplicationException($"DeleteTrainingVideo failed: {(int)resp.StatusCode} {resp.StatusCode}\n{body}");
+            }
         }
     }
 }

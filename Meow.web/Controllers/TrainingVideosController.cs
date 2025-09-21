@@ -18,7 +18,8 @@ public class TrainingVideosController : Controller
     public async Task<IActionResult> Index(string? keyword, string? status, List<Guid>? tagIds)
     {
         var tags = await _api.GetTagsAsync(); // 直接使用 Shared 的 TagDto
-        var videos = await _api.GetTrainingVideosAsync(keyword, status, tagIds);
+        var videos = await _api.GetTrainingVideosAsync(keyword: null, status: "Published", tagIdsCsv: null);
+
 
         var vm = new TrainingVideoIndexVm
         {

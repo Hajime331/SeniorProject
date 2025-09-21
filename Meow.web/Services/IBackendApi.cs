@@ -120,18 +120,25 @@ namespace Meow.Web.Services
         Task<TrainingSessionDetailDto?> GetTrainingSessionAsync(Guid sessionId);
 
 
-        Task<IReadOnlyList<TrainingSetListItemDto>> GetTrainingSetsAsync(string? keyword = null, string? status = "Active");
-
-
         // 影片查詢（支援 keyword/status/tagIds，多選 tagIds 以逗號字串）
+        Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(string? keyword, string? status, string? tagIdsCsv);
+
+
+        // 新增這個多載（吃 List<Guid>）
         Task<IReadOnlyList<TrainingVideoListItemDto>> GetTrainingVideosAsync(
-            string? keyword = null, string? status = null, IEnumerable<Guid>? tagIds = null);
+            string? keyword, string? status, IEnumerable<Guid>? tagIds);
+
 
         Task UpdateTrainingVideoTagsAsync(Guid id, IEnumerable<Guid> tagIds);
 
 
         // 取得單一影片詳情
-        Task<TrainingVideoDetailDto> GetTrainingVideoAsync(Guid id);
+        Task<TrainingVideoDetailDto?> GetTrainingVideoAsync(Guid id);
+
+
+        // 建立影片
+        Task<TrainingVideoDetailDto> CreateTrainingVideoAsync(TrainingVideoCreateDto dto);
+
 
 
         // 影片更新
@@ -143,15 +150,33 @@ namespace Meow.Web.Services
         Task UpdateTrainingVideoStatusAsync(Guid id, string status);
 
 
+        // 刪除影片
+        Task DeleteTrainingVideoAsync(Guid id);
+
+
+        // 取得所有課表清單（支援 keyword/status 篩選）
+        Task<IReadOnlyList<TrainingSetListItemDto>> GetTrainingSetsAsync(string? keyword, string? status);
+
+
+
         // 取得單一課表詳情
-        Task<TrainingSetDetailDto> GetTrainingSetAsync(Guid id);
+        Task<TrainingSetDetailDto?> GetTrainingSetAsync(Guid id);
 
 
         // 建立課表
         Task<TrainingSetDetailDto> CreateTrainingSetAsync(TrainingSetCreateDto dto);
 
-        // 建立影片
-        Task<TrainingVideoDetailDto> CreateTrainingVideoAsync(TrainingVideoCreateDto dto);
+
+        // 課表更新
+        Task<TrainingSetDetailDto> UpdateTrainingSetAsync(Guid id, TrainingSetUpdateDto dto);
+
+        // 刪除課表
+        Task DeleteTrainingSetAsync(Guid id);
+
+
+
+        // 便利多載
+        Task<TrainingSetDetailDto> UpdateTrainingSetAsync(TrainingSetUpdateDto dto); 
 
     }
 }

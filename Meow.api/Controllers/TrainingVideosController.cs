@@ -1,6 +1,7 @@
 ﻿using Meow.Api.Data;
 using Meow.Api.Infrastructure;
 using Meow.Shared.Dtos.Videos;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -80,11 +81,16 @@ public class TrainingVideosController : ControllerBase
 
 
     // POST /api/TrainingVideos
+    [Authorize]
     [HttpPost]
     public async Task<ActionResult<TrainingVideoDetailDto>> Create([FromBody] TrainingVideoCreateDto dto)
     {
+        if (!(User?.Identity?.IsAuthenticated ?? false)) return Unauthorized();
+
         var validStatus = new[] { "Draft", "Published", "Archived" }; // 你原本就有的白名單
         if (!validStatus.Contains(dto.Status)) return BadRequest("Invalid Status");
+
+
 
         var me = User.GetMemberId(); // ★ 取登入者
         var v = new TrainingVideo
@@ -121,9 +127,12 @@ public class TrainingVideosController : ControllerBase
     }
 
     // PUT /api/TrainingVideos/{id}/status
+    [Authorize]
     [HttpPut("{id:guid}/status")]
     public async Task<IActionResult> UpdateStatus(Guid id, [FromBody] TrainingVideoStatusDto dto)
     {
+        if (!(User?.Identity?.IsAuthenticated ?? false)) return Unauthorized();
+
         var v = await _db.TrainingVideos.FirstOrDefaultAsync(x => x.VideoID == id);
         if (v is null) return NotFound();
 
@@ -141,9 +150,13 @@ public class TrainingVideosController : ControllerBase
         return NoContent();
     }
 
+    // PUT /api/TrainingVideos/{id}/tags
+    [Authorize]
     [HttpPut("{id:guid}/tags")]
     public async Task<IActionResult> UpdateTags(Guid id, [FromBody] IEnumerable<Guid> tagIds)
     {
+        if (!(User?.Identity?.IsAuthenticated ?? false)) return Unauthorized();
+
         var v = await _db.TrainingVideos.FirstOrDefaultAsync(x => x.VideoID == id);
         if (v is null) return NotFound();
 
@@ -158,6 +171,70 @@ public class TrainingVideosController : ControllerBase
         foreach (var tid in (tagIds ?? Enumerable.Empty<Guid>()).Distinct())
             _db.VideoTagMaps.Add(new VideoTagMap { VideoID = id, TagID = tid });
 
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+
+    // PUT /api/TrainingVideos/{id}
+    [Authorize]
+    [HttpPut("{id:guid}")]
+    public async Task<IActionResult> Update(Guid id, [FromBody] TrainingVideoUpdateDto dto)
+    {
+        if (!(User?.Identity?.IsAuthenticated ?? false)) return Unauthorized();
+
+        if (id != dto.VideoId) return BadRequest("ID mismatch.");
+
+        var v = await _db.TrainingVideos.FirstOrDefaultAsync(x => x.VideoID == id);
+        if (v == null) return NotFound();
+
+        // 僅影片建立者或管理者可修改
+        var me = User.GetMemberId();
+        var isAdmin = User.IsAdmin();
+        if (!isAdmin && v.CreatedByMemberID != me) return Forbid();
+
+        // 檢查狀態合法
+        var validStatus = new[] { "Draft", "Published", "Archived" };
+        if (!validStatus.Contains(dto.Status)) return BadRequest("Invalid status.");
+
+        // 更新欄位
+        v.Title = dto.Title;
+        v.BodyPart = dto.BodyPart;
+        v.Url = dto.Url;
+        v.DurationSec = dto.DurationSec;
+        v.Status = dto.Status;
+        v.UpdatedAt = DateTime.UtcNow;
+
+        // 更新標籤：先清除再新增
+        var oldTagMaps = _db.VideoTagMaps.Where(m => m.VideoID == id);
+        _db.VideoTagMaps.RemoveRange(oldTagMaps);
+        foreach (var tid in (dto.TagIds ?? new List<Guid>()).Distinct())
+        {
+            _db.VideoTagMaps.Add(new VideoTagMap { VideoID = id, TagID = tid });
+        }
+
+        await _db.SaveChangesAsync();
+        return NoContent();
+    }
+
+    // DELETE /api/TrainingVideos/{id}
+    [Authorize]
+    [HttpDelete("{id:guid}")]
+    public async Task<IActionResult> Delete(Guid id)
+    {
+        if (!(User?.Identity?.IsAuthenticated ?? false)) return Unauthorized();
+
+        var v = await _db.TrainingVideos.FirstOrDefaultAsync(x => x.VideoID == id);
+        if (v == null) return NotFound();
+
+        // 僅管理者可刪除影片
+        if (!User.IsAdmin()) return Forbid();
+
+        // 移除標籤關聯
+        var tagMaps = _db.VideoTagMaps.Where(m => m.VideoID == id);
+        _db.VideoTagMaps.RemoveRange(tagMaps);
+
+        _db.TrainingVideos.Remove(v);
         await _db.SaveChangesAsync();
         return NoContent();
     }

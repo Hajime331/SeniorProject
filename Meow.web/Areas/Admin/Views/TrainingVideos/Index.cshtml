@@ -1,0 +1,61 @@
+﻿@model List<Meow.Shared.Dtos.Videos.TrainingVideoListItemDto>
+@{
+    ViewData["Title"] = "Training Videos";
+}
+<h2 class="mb-3">Training Videos</h2>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <form class="d-flex gap-2" method="get">
+        <input class="form-control" type="text" name="keyword" placeholder="關鍵字 (Title)" value="@Context.Request.Query["keyword"]" />
+        <select class="form-select" name="status">
+            <option value="">全部狀態</option>
+            <option value="Draft" selected="@(Context.Request.Query["status"] == "Draft")">Draft</option>
+            <option value="Published" selected="@(Context.Request.Query["status"] == "Published")">Published</option>
+            <option value="Archived" selected="@(Context.Request.Query["status"] == "Archived")">Archived</option>
+        </select>
+        <button class="btn btn-primary" type="submit">查詢</button>
+    </form>
+    <a class="btn btn-success" asp-area="Admin" asp-controller="TrainingVideos" asp-action="Create">＋ 新增影片</a>
+</div>
+
+@if (Model is null || Model.Count == 0)
+{
+    <div class="alert alert-info">目前沒有資料。</div>
+}
+else
+{
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr>
+                <th>標題</th>
+                <th>部位</th>
+                <th>時長(秒)</th>
+                <th>狀態</th>
+                <th>建立時間</th>
+                <th>操作</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var v in Model)
+            {
+                <tr>
+                    <td>@v.Title</td>
+                    <td>@v.BodyPart</td>
+                    <td>@v.DurationSec</td>
+                    <td>@v.Status</td>
+                    <td>@(v.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm"))</td>
+                    <td class="d-flex gap-2">
+                        <a class="btn btn-sm btn-outline-primary"
+                           asp-area="Admin" asp-controller="TrainingVideos" asp-action="Edit" asp-route-id="@v.VideoId">編輯</a>
+
+                        <form asp-area="Admin" asp-controller="TrainingVideos" asp-action="Delete" method="post"
+                              onsubmit="return confirm('刪除後無法復原，確定刪除？');">
+                            <input type="hidden" name="id" value="@v.VideoId" />
+                            <button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}

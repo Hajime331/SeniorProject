@@ -1,0 +1,106 @@
+﻿@model TrainingVideoEditViewModel
+@{
+    ViewData["Title"] = "Create Training Video";
+}
+<h2 class="mb-3">新增影片</h2>
+
+<form method="post">
+    <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+
+    <div class="row g-3">
+        <div class="col-md-6">
+            <label asp-for="Title" class="form-label"></label>
+            <input asp-for="Title" class="form-control" />
+            <span asp-validation-for="Title" class="text-danger"></span>
+        </div>
+        <div class="col-md-3">
+            <label asp-for="BodyPart" class="form-label"></label>
+            <input asp-for="BodyPart" class="form-control" placeholder="如：胸 / 腿 / 全身" />
+        </div>
+        <div class="col-md-3">
+            <label asp-for="DurationSec" class="form-label"></label>
+            <input asp-for="DurationSec" class="form-control" type="number" min="0" />
+        </div>
+
+        <div class="col-12">
+            <label asp-for="Url" class="form-label"></label>
+            <input asp-for="Url" class="form-control" placeholder="影片來源 URL" />
+            <span asp-validation-for="Url" class="text-danger"></span>
+        </div>
+
+        <div class="col-md-4">
+            <label asp-for="Status" class="form-label"></label>
+            <select asp-for="Status" class="form-select">
+                <option>Draft</option>
+                <option>Published</option>
+                <option>Archived</option>
+            </select>
+        </div>
+        <div class="col-md-8">
+            <label asp-for="ThumbnailUrl" class="form-label"></label>
+            <input asp-for="ThumbnailUrl" class="form-control" placeholder="(可選) 縮圖 URL" />
+        </div>
+
+        <div class="col-12">
+            <label class="form-label">標籤（可多選）</label>
+            <select id="tagIds" name="TagIds" class="form-select" multiple size="6">
+                @* 由 JS 以 /api/Tags 載入選項 *@
+            </select>
+            <small class="text-muted">可用 Ctrl/Shift 多選（桌面）。之後可替換成 Select2/Choices.js。</small>
+        </div>
+
+    </div>
+
+    <div class="mt-4 d-flex gap-2">
+        <button class="btn btn-primary" type="submit">儲存</button>
+        <a class="btn btn-secondary" asp-area="Admin" asp-controller="TrainingVideos" asp-action="Index">返回列表</a>
+    </div>
+
+</form>
+
+@section Scripts {
+    <partial name="_ValidationScriptsPartial" />
+    <script>
+        document.querySelector('form').addEventListener('submit', e => {
+            const csv = document.querySelector('input[name="TagIdsCsv"]').value.trim();
+            const container = document.querySelector('input[name="TagIds"]').parentElement;
+            document.querySelectorAll('input[name="TagIds"]').forEach(x=>x.remove());
+            if (csv) csv.split(',').map(s=>s.trim()).forEach(g=>{
+                const hidden=document.createElement('input');
+                hidden.type='hidden'; hidden.name='TagIds'; hidden.value=g; container.appendChild(hidden);
+            });
+        });
+
+
+            <partial name="_ValidationScriptsPartial" />
+        <script>
+            async function loadTags(selected = []) {
+                try {
+                    // 你已有的 Tag API，可過濾 Active
+                    const res = await fetch('/api/Tags?status=Active');
+                    if (!res.ok) throw new Error('load tags failed');
+                    const data = await res.json();
+
+                    // 依你的 DTO 欄位調整：預設用 tagId/name
+                    const sel = document.getElementById('tagIds');
+                    sel.innerHTML = '';
+
+                    data.forEach(t => {
+                        const opt = document.createElement('option');
+                        opt.value = t.tagId;       // 若是 t.id -> 改成 t.id
+                        opt.textContent = t.name;  // 若是 t.title -> 改成 t.title
+                        if (selected.includes(t.tagId)) opt.selected = true;
+                        sel.appendChild(opt);
+                    });
+                } catch (e) {
+                    console.error(e);
+                }
+            }
+
+            document.addEventListener('DOMContentLoaded', () => {
+                // Create 頁：Model.TagIds 可能為空陣列；Edit 頁：可帶既有值預選
+                const preSelected = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model?.TagIds ?? new List<Guid>()));
+                loadTags(preSelected);
+            });
+    </script>
+}
