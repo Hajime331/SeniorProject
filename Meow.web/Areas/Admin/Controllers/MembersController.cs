@@ -4,10 +4,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authorization;
 using Meow.Web.ViewModels;
 
-namespace Meow.Web.Controllers
+namespace Meow.Web.Areas.Admin.Controllers
 {
-    [Authorize]  // 只要有登入就能使用
-    // 只做「叫服務、把資料丟給 View」
+    [Area("Admin")]
+    [Authorize(Policy = "AdminOnly")] // 你已經有 AdminOnly Policy
     public class MembersController(IBackendApi api) : Controller
     {
         public async Task<IActionResult> Index()
@@ -16,37 +16,19 @@ namespace Meow.Web.Controllers
             return View(data);
         }
 
-        // GET: /Members/Create
         [HttpGet]
-        public IActionResult Create()
-        {
-            return View(new MemberCreateVm());
-        }
+        public IActionResult Create() => View(new MemberCreateVm());
 
         // POST: /Members/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(MemberCreateVm vm)
         {
-            // 1) 伺服器端驗證（對應 DataAnnotations），不合格（例如 Email 空白）→ 這行會原頁返回
-            if (!ModelState.IsValid)
-            {
-                return View(vm);
-            }
-
+            if (!ModelState.IsValid) return View(vm);
             try
             {
-                // 2) 呼叫後端 API
-                var req = new MemberCreateRequest
-                {
-                    Email = vm.Email.Trim(),
-                    Nickname = vm.Nickname.Trim(),
-                    Password = vm.Password
-                };
-
+                var req = new MemberCreateRequest { Email = vm.Email.Trim(), Nickname = vm.Nickname.Trim(), Password = vm.Password };
                 var created = await api.CreateMemberAsync(req);
-
-                // 3) 成功 → 設置提示訊息並回清單
                 TempData["Success"] = $"已建立會員：{created?.Nickname}";
                 return RedirectToAction(nameof(Index));
             }

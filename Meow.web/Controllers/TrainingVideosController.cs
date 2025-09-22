@@ -3,37 +3,71 @@ using Meow.Web.Services;
 using Meow.Web.ViewModels.TrainingVideos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Threading.Tasks;
 
-[Authorize]
+[Authorize] // 仍保留：若將來加「收藏/按讚」等需登入功能
 public class TrainingVideosController : Controller
 {
     private readonly IBackendApi _api;
-    public TrainingVideosController(IBackendApi api)
-    {
-        _api = api;
-    }
+    public TrainingVideosController(IBackendApi api) => _api = api;
 
-    // GET /TrainingVideos
+    // 首頁列表（前台可看）：預設只顯示 Published
+    [AllowAnonymous]
     [HttpGet]
     public async Task<IActionResult> Index(string? keyword, string? status, List<Guid>? tagIds)
     {
-        var tags = await _api.GetTagsAsync(); // 直接使用 Shared 的 TagDto
-        var videos = await _api.GetTrainingVideosAsync(keyword: null, status: "Published", tagIdsCsv: null);
+        // 預設狀態 Published；若你想固定只顯示 Published，可直接寫死 "Published"
+        var targetStatus = string.IsNullOrWhiteSpace(status) ? "Published" : status.Trim();
 
+        // 讀取所有可用標籤（做篩選 UI）
+        var tags = await _api.GetTagsAsync();
+
+        // 第三個參數避免多載模糊：有 tagIds 時轉 CSV；沒有就 (string?)null
+        string? tagIdsCsv = (tagIds != null && tagIds.Any())
+            ? string.Join(",", tagIds)
+            : (string?)null;
+
+        var videos = await _api.GetTrainingVideosAsync(
+            string.IsNullOrWhiteSpace(keyword) ? null : keyword.Trim(),
+            targetStatus,
+            tagIdsCsv
+        );
 
         var vm = new TrainingVideoIndexVm
         {
             Keyword = keyword,
-            Status = status,
+            Status = targetStatus,
             SelectedTagIds = tagIds ?? new List<Guid>(),
-            AllTags = tags.ToList(),      // 不再做 TagID/TagId 轉換
-            Videos = videos               // List<TrainingVideoListItemDto>
+            AllTags = tags.ToList(),
+            Videos = videos // IEnumerable<TrainingVideoListItemDto>
         };
 
         return View(vm);
     }
 
-    // POST /TrainingVideos/UpdateStatus
+    // 影片詳情（前台可看）
+    [AllowAnonymous]
+    [HttpGet]
+    public async Task<IActionResult> Details(Guid id)
+    {
+        if (id == Guid.Empty) return NotFound();
+
+        var video = await _api.GetTrainingVideoAsync(id);
+        if (video == null) return NotFound();
+
+        var tags = await _api.GetTagsAsync();
+        var vm = new TrainingVideoDetailVm
+        {
+            Video = video,
+            AllTags = tags.ToList()
+        };
+        return View(vm);
+    }
+
+    // 後續若有需要登入的操作（例如更新狀態），保留 [Authorize]
     [HttpPost]
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> UpdateStatus(Guid id, string status, string? returnUrl = null)
@@ -51,66 +85,5 @@ public class TrainingVideosController : Controller
             return Redirect(returnUrl);
 
         return RedirectToAction(nameof(Index));
-    }
-
-
-    [HttpGet]
-    public async Task<IActionResult> Create()
-    {
-        var tags = await _api.GetTagsAsync();
-        var vm = new TrainingVideoCreateVm
-        {
-            AllTags = tags.ToList(),
-            Status = "Draft"
-        };
-        return View(vm);
-    }
-
-    [HttpPost]
-    [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Create(TrainingVideoCreateVm model)
-    {
-        // 基本驗證
-        if (string.IsNullOrWhiteSpace(model.Title))
-            ModelState.AddModelError(nameof(model.Title), "請輸入標題");
-        if (string.IsNullOrWhiteSpace(model.BodyPart))
-            ModelState.AddModelError(nameof(model.BodyPart), "請選擇部位");
-        if (string.IsNullOrWhiteSpace(model.Url))
-            ModelState.AddModelError(nameof(model.Url), "請輸入影片連結");
-        if (model.DurationSec <= 0)
-            ModelState.AddModelError(nameof(model.DurationSec), "請輸入正確的秒數");
-        if (!ModelState.IsValid)
-        {
-            model.AllTags = (await _api.GetTagsAsync()).ToList();
-            return View(model);
-        }
-
-        var dto = new TrainingVideoCreateDto(
-            model.Title.Trim(),
-            model.BodyPart.Trim(),
-            model.Url.Trim(),
-            model.DurationSec,
-            model.Status.Trim(),
-            model.SelectedTagIds ?? new List<Guid>(),
-            model.ThumbnailUrl
-        );
-
-        await _api.CreateTrainingVideoAsync(dto);
-        TempData["Ok"] = "已建立影片。";
-        return RedirectToAction(nameof(Index));
-    }
-
-    [HttpGet]
-    public async Task<IActionResult> Details(Guid id)
-    {
-        var video = await _api.GetTrainingVideoAsync(id);
-        if (video == null) return NotFound();
-        var tags = await _api.GetTagsAsync();
-        var vm = new TrainingVideoDetailVm
-        {
-            Video = video,
-            AllTags = tags.ToList()
-        };
-        return View(vm);
     }
 }

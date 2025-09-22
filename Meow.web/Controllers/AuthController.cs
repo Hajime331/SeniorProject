@@ -1,14 +1,18 @@
-﻿using System.Security.Claims;
+﻿using Meow.Web.Models;
+using Meow.Web.Services;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Meow.Web.Models;
-using Meow.Web.Services;
+using System.Security.Claims;
 
 namespace Meow.Web.Controllers
 {
-    public class AuthController(IBackendApi api) : Controller
+    public partial class AuthController : Controller
     {
+        private readonly IBackendApi _api;
+        public AuthController(IBackendApi api) => _api = api;
+
         // GET: /Auth/Login
         [HttpGet]
         public IActionResult Login(string? returnUrl = null)
@@ -26,7 +30,7 @@ namespace Meow.Web.Controllers
 
             try
             {
-                var me = await api.LoginAsync(vm.Email.Trim(), vm.Password);
+                var me = await _api.LoginAsync(vm.Email.Trim(), vm.Password);
 
                 // 把 API 回來的使用者資訊變成 Claims
                 var claims = new List<Claim>
@@ -101,6 +105,59 @@ namespace Meow.Web.Controllers
         {
             Response.StatusCode = 403; // 保留正確狀態碼
             return View();
+        }
+
+
+        [HttpGet, AllowAnonymous]
+        public IActionResult Register(string? returnUrl = null)
+            => View(new RegisterVm { ReturnUrl = returnUrl });
+
+        [HttpPost, ValidateAntiForgeryToken, AllowAnonymous]
+        public async Task<IActionResult> Register(RegisterVm vm)
+        {
+            if (!ModelState.IsValid) return View(vm);
+
+            try
+            {
+                // 呼叫 API：/api/Members 來建立會員
+                var req = new MemberCreateRequest { Email = vm.Email.Trim(), Nickname = vm.Nickname.Trim(), Password = vm.Password };
+                var created = await _api.CreateMemberAsync(req); // 若信箱重複會丟 InvalidOperationException
+                // （選）自動登入：直接沿用你現有的登入邏輯
+                var me = await _api.LoginAsync(vm.Email.Trim(), vm.Password);
+
+                var claims = new List<Claim>
+                {
+                    new Claim(ClaimTypes.NameIdentifier, me!.MemberID.ToString()),
+                    new Claim(ClaimTypes.Name, me.Nickname ?? me.Email),
+                    new Claim(ClaimTypes.Email, me.Email),
+                    new Claim("IsAdmin", me.IsAdmin.ToString())
+                };
+
+                var identity = new ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
+                await HttpContext.SignInAsync(
+                    CookieAuthenticationDefaults.AuthenticationScheme,
+                    new ClaimsPrincipal(identity),
+                    new AuthenticationProperties { IsPersistent = true, ExpiresUtc = DateTimeOffset.UtcNow.AddDays(14) }
+                );
+
+                TempData["Success"] = "註冊成功，已自動為你登入。";
+                if (!string.IsNullOrWhiteSpace(vm.ReturnUrl) && Url.IsLocalUrl(vm.ReturnUrl))
+                    return Redirect(vm.ReturnUrl);
+
+                // 一般會員導向你的個人儀表板（或首頁）
+                return RedirectToAction("MyWeekly", "Dashboard");
+            }
+            catch (InvalidOperationException ex)
+            {
+                // 例如：Email 已被使用（API 回 409 時，BackendApi 會丟這個例外）
+                ModelState.AddModelError(string.Empty, ex.Message);
+                return View(vm);
+            }
+            catch (HttpRequestException ex)
+            {
+                ModelState.AddModelError(string.Empty, $"無法連線到 API：{ex.Message}");
+                return View(vm);
+            }
         }
     }
 }

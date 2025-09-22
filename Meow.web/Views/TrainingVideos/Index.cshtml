@@ -1,51 +1,82 @@
-﻿@using Meow.Shared.Dtos.Videos
-@using Meow.Shared.Dtos.Tags
-@model Meow.Web.ViewModels.TrainingVideos.TrainingVideoIndexVm
-
+﻿@model Meow.Web.ViewModels.TrainingVideos.TrainingVideoIndexVm
 @{
-    ViewData["Title"] = "影片清單";
-    var tagName = Model.AllTags.ToDictionary(t => t.TagId, t => t.Name);
+    ViewData["Title"] = "訓練影片";
+    // 先準備目前選中的單一標籤（若是多選 List<Guid>，取第一個即可）
+    var selectedTagId = Model.SelectedTagIds != null && Model.SelectedTagIds.Count > 0
+        ? Model.SelectedTagIds[0]
+        : (Guid?)null;
 }
 
-<form method="get" class="mb-4">
+<h2 class="mb-3">訓練影片</h2>
+
+<form id="filterForm" asp-action="Index" method="get" class="border rounded p-3 mb-4">
     <div class="row g-2 align-items-end">
-        <div class="col-md-4">
+        <div class="col-md-5">
             <label class="form-label">關鍵字</label>
-            <input type="text" name="keyword" value="@Model.Keyword" class="form-control" placeholder="例如：深蹲 / plank" />
+            <input id="keywordInput" name="keyword" class="form-control" value="@Model.Keyword" placeholder="搜尋標題、部位…" />
         </div>
-        <div class="col-md-3">
-            <label class="form-label">狀態</label>
-            <select asp-for="Status" name="status" class="form-select">
-                <option value="">（全部）</option>
-                <option>Published</option>
-                <option>Draft</option>
-                <option>Archived</option>
+
+        <div class="col-md-5">
+            <label class="form-label">標籤</label>
+            @* 單選下拉。保留參數名 "tagIds"（Controller 若用 List<Guid> 仍可繫結單一值） *@
+            <select id="tagSelect" name="tagIds" class="form-select">
+                <option value="">全部標籤</option>
+                @foreach (var t in Model.AllTags)
+                {
+                    <option value="@t.TagId">@t.Name</option>
+                }
             </select>
         </div>
-        <div class="col-12 mt-2">
-            <label class="form-label d-block">標籤</label>
-            @foreach (var t in Model.AllTags)
-            {
-                var isChecked = Model.SelectedTagIds.Contains(t.TagId);
-                if (isChecked)
-                {
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" name="tagIds" value="@t.TagId" checked />
-                        <label class="form-check-label">@t.Name</label>
-                    </div>
-                }
-                else
-                {
-                    <div class="form-check form-check-inline">
-                        <input class="form-check-input" type="checkbox" name="tagIds" value="@t.TagId" />
-                        <label class="form-check-label">@t.Name</label>
-                    </div>
-                }
-            }
-        </div>
-        <div class="col-12 mt-2">
-            <button type="submit" class="btn btn-primary">套用篩選</button>
-            <a asp-action="Index" class="btn btn-outline-secondary ms-2">清除</a>
+
+        <div class="col-md-2 d-flex gap-2">
+            <button class="btn btn-primary flex-fill">篩選</button>
+            <button id="clearBtn" type="button" class="btn btn-outline-secondary flex-fill">清空</button>
         </div>
     </div>
 </form>
+
+@if (Model.Videos == null || !Model.Videos.Any())
+{
+    <div class="alert alert-info">目前沒有符合條件的影片。</div>
+}
+else
+{
+    <div class="row row-cols-1 row-cols-md-3 g-3">
+        @foreach (var v in Model.Videos)
+        {
+            <div class="col">
+                <div class="card h-100 shadow-sm">
+                    @if (!string.IsNullOrWhiteSpace(v.ThumbnailUrl))
+                    {
+                        <img src="@v.ThumbnailUrl" class="card-img-top" alt="@v.Title" />
+                    }
+                    <div class="card-body">
+                        <h5 class="card-title text-truncate mb-1">@v.Title</h5>
+                        <div class="small text-muted mb-2">
+                            部位：@v.BodyPart　/　時長：@v.DurationSec 秒
+                        </div>
+                        <a asp-action="Details" asp-route-id="@v.VideoId" class="btn btn-outline-primary btn-sm">查看</a>
+                    </div>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@section Scripts {
+    <script>
+        (function () {
+            // 初始化下拉選已選標籤（避免 Razor option selected 判斷觸發 TagHelper 限制）
+            var tagSelect = document.getElementById('tagSelect');
+            var selectedTag = '@(selectedTagId?.ToString() ?? "")';
+            if (selectedTag) tagSelect.value = selectedTag;
+
+            // 清空條件
+            document.getElementById('clearBtn')?.addEventListener('click', function () {
+                document.getElementById('keywordInput').value = '';
+                tagSelect.value = '';
+                document.getElementById('filterForm').submit();
+            });
+        })();
+    </script>
+}

@@ -3,7 +3,7 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] = "前台"</title>
+    <title>@ViewData["Title"]</title>
     <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
     <link rel="stylesheet" href="~/Meow.web.styles.css" asp-append-version="true" />
@@ -21,30 +21,46 @@
 
                 <div class="navbar-collapse collapse d-sm-inline-flex justify-content-between">
                     <ul class="navbar-nav flex-grow-1">
-                        @*<li class="nav-item"><a class="nav-link text-dark" asp-controller="Home" asp-action="Index">Home</a></li>
-                        <li class="nav-item"><a class="nav-link text-dark" asp-controller="Home" asp-action="Privacy">Privacy</a></li>
-                        <li class="nav-item"><a class="nav-link text-dark" asp-controller="Home" asp-action="Tags">Tags</a></li>
-                        <li class="nav-item"><a class="nav-link" asp-controller="Members" asp-action="Index">會員</a></li>*@
 
                         @* 僅登入者顯示 *@
                         @if (User.Identity?.IsAuthenticated ?? false)
                         {
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="Account" asp-action="Profile">會員中心</a>
+                            @* 會員（會員中心、變更密碼） *@
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="navMember" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    會員
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="navMember">
+                                    <li><a class="dropdown-item" asp-controller="Account" asp-action="Profile">會員中心</a></li>
+                                    <li><a class="dropdown-item" asp-controller="Account" asp-action="ChangePassword">變更密碼</a></li>
+                                </ul>
                             </li>
-                            <li class="nav-item"><a class="nav-link" asp-controller="Account" asp-action="ChangePassword">變更密碼</a></li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-area="" asp-controller="Dashboard" asp-action="MyWeekly">我的儀表板</a>
+
+                            @* 統計紀錄（我的儀表板、訓練紀錄） *@
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="navStats" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    統計紀錄
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="navStats">
+                                    <li><a class="dropdown-item" asp-controller="Dashboard" asp-action="Index">我的儀表板</a></li>
+                                    <li><a class="dropdown-item" asp-controller="TrainingSessions" asp-action="Index">訓練紀錄</a></li>
+                                </ul>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="TrainingSessions" asp-action="Index">訓練紀錄</a>
+
+                            @* 訓練（課表與影片） *@
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="navTraining" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    訓練
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="navTraining">
+                                    <li><a class="dropdown-item" asp-controller="TrainingSets" asp-action="Index">課表</a></li>
+                                    <li><a class="dropdown-item" asp-controller="TrainingVideos" asp-action="Index">影片</a></li>
+                                </ul>
                             </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="TrainingSets" asp-action="Index">課表</a>
-                            </li>
-                            <li class="nav-item">
-                                <a class="nav-link" asp-controller="TrainingVideos" asp-action="Index">影片</a>
-                            </li>
+
+                            @* 管理後台：照你原本的擺放，不動（若本來在右側，請保持） *@
+                            @* <li class="nav-item"><a class="nav-link" asp-area="Admin" asp-controller="Home" asp-action="Index">管理後台</a></li> *@
+
 
 
                         }
@@ -73,6 +89,7 @@
                         }
                         else
                         {
+                            <li class="nav-item"><a class="nav-link" asp-controller="Auth" asp-action="Register">註冊</a></li>
                             <li class="nav-item"><a class="nav-link" asp-controller="Auth" asp-action="Login">登入</a></li>
                         }
                     </ul>

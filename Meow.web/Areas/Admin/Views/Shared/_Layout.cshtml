@@ -23,17 +23,17 @@
 
                 <div class="collapse navbar-collapse" id="adminNav">
                     <ul class="navbar-nav flex-grow-1">
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="Admin" asp-controller="Home" asp-action="Index">首頁</a>
-                        </li>
 
                         <li class="nav-item dropdown">
                             <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">內容管理</a>
-                            <ul class="dropdown-menu">
+                            <ul class="dropdown-menu" aria-labelledby="navMember">
                                 <li><a class="dropdown-item" asp-area="Admin" asp-controller="TrainingSets" asp-action="Index">課表</a></li>
                                 <li><a class="dropdown-item" asp-area="Admin" asp-controller="TrainingVideos" asp-action="Index">影片</a></li>
                                 <li><a class="dropdown-item" asp-area="Admin" asp-controller="Tags" asp-action="Index">標籤</a></li>
                             </ul>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" asp-area="Admin" asp-controller="Members" asp-action="Index">會員清單</a>
                         </li>
                         <li class="nav-item">
                             <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">回前台</a>

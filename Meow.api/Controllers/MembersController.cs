@@ -123,7 +123,7 @@ namespace Meow.Api.Controllers
             return CreatedAtAction(nameof(GetOne), new { id = member.MemberID }, dto);
         }
 
-        [HttpPost("login")]
+        /*[HttpPost("login")]
         [Consumes("application/json")]
         [Produces("application/json")]
         [ProducesResponseType(typeof(MemberListItemDto), StatusCodes.Status200OK)]
@@ -174,7 +174,7 @@ namespace Meow.Api.Controllers
                 LastLoginAt = m.LastLoginAt
             };
             return Ok(dto);
-        }
+        }*/
 
         [HttpGet("count")]
         public async Task<int> Count()

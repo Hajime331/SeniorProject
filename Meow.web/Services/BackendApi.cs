@@ -108,7 +108,7 @@ namespace Meow.Web.Services
         public async Task<MemberDto?> LoginAsync(string email, string password)
         {
             var body = new { email, password };
-            var resp = await _http.PostAsJsonAsync("api/Members/login", body);
+            var resp = await _http.PostAsJsonAsync("api/Auth/login", body);
 
             if (resp.StatusCode == HttpStatusCode.Unauthorized)
                 throw new InvalidOperationException("Email 或密碼不正確");
