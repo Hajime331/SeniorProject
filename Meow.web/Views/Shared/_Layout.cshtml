@@ -36,16 +36,6 @@
                                 </ul>
                             </li>
 
-                            @* 統計紀錄（我的儀表板、訓練紀錄） *@
-                            <li class="nav-item dropdown">
-                                <a class="nav-link dropdown-toggle" href="#" id="navStats" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                                    統計紀錄
-                                </a>
-                                <ul class="dropdown-menu" aria-labelledby="navStats">
-                                    <li><a class="dropdown-item" asp-controller="Dashboard" asp-action="Index">我的儀表板</a></li>
-                                    <li><a class="dropdown-item" asp-controller="TrainingSessions" asp-action="Index">訓練紀錄</a></li>
-                                </ul>
-                            </li>
 
                             @* 訓練（課表與影片） *@
                             <li class="nav-item dropdown">
@@ -58,9 +48,17 @@
                                 </ul>
                             </li>
 
-                            @* 管理後台：照你原本的擺放，不動（若本來在右側，請保持） *@
-                            @* <li class="nav-item"><a class="nav-link" asp-area="Admin" asp-controller="Home" asp-action="Index">管理後台</a></li> *@
 
+                            @* 統計紀錄（我的儀表板、訓練紀錄） *@
+                            <li class="nav-item dropdown">
+                                <a class="nav-link dropdown-toggle" href="#" id="navStats" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                                    紀錄
+                                </a>
+                                <ul class="dropdown-menu" aria-labelledby="navStats">
+                                    <li><a class="dropdown-item" asp-controller="Dashboard" asp-action="Index">我的儀表板</a></li>
+                                    <li><a class="dropdown-item" asp-controller="TrainingSessions" asp-action="Index">訓練紀錄</a></li>
+                                </ul>
+                            </li>
 
 
                         }
