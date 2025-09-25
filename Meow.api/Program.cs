@@ -70,6 +70,8 @@ app.UseHttpsRedirection();
 app.UseAuthentication(); // 必須在 UseAuthorization 之前
 app.UseAuthorization();
 
+app.UseStaticFiles();
+
 app.MapControllers();
 
 app.Run();

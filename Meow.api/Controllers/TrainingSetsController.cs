@@ -12,21 +12,41 @@ public class TrainingSetsController : ControllerBase
     private readonly AppDbContext _db;
     public TrainingSetsController(AppDbContext db) => _db = db;
 
-    // GET /api/TrainingSets?keyword=&status=Active
+    // GET /api/TrainingSets?keyword=&status=&difficulty=&tagId=
+    // GET /api/TrainingSets?keyword=&status=&difficulty=&tagId=
     [HttpGet]
-    public async Task<ActionResult<IEnumerable<TrainingSetListItemDto>>> Get([FromQuery] string? keyword, [FromQuery] string? status)
+    public async Task<ActionResult<IEnumerable<TrainingSetListItemDto>>> Get(
+        [FromQuery] string? keyword,
+        [FromQuery] string? status,
+        [FromQuery] string? difficulty,
+        [FromQuery] Guid? tagId
+    )
     {
+        // 基礎查詢
         var q = _db.TrainingSets.AsNoTracking();
 
         if (!string.IsNullOrWhiteSpace(keyword))
             q = q.Where(s => s.Name.Contains(keyword));
+
         if (!string.IsNullOrWhiteSpace(status))
             q = q.Where(s => s.Status == status);
 
+        if (!string.IsNullOrWhiteSpace(difficulty))
+            q = q.Where(s => s.Difficulty == difficulty);
+
+        if (tagId.HasValue)
+            q = q.Where(s => _db.SetTagMaps.Any(m => m.SetID == s.SetID && m.TagID == tagId.Value));
+
+        // 投影成清單 DTO（沿用你原本的欄位）
         var list = await q
             .OrderByDescending(s => s.CreatedAt)
             .Select(s => new TrainingSetListItemDto(
-                s.SetID, s.Name, s.BodyPart, s.Equipment, s.Difficulty, s.EstimatedDurationSec,
+                s.SetID,
+                s.Name,
+                s.BodyPart,
+                s.Equipment,
+                s.Difficulty,
+                s.EstimatedDurationSec,
                 _db.SetTagMaps.Where(m => m.SetID == s.SetID).Select(m => m.TagID).ToList(),
                 _db.TrainingSetItems.Count(i => i.SetID == s.SetID)
             ))
@@ -34,6 +54,8 @@ public class TrainingSetsController : ControllerBase
 
         return Ok(list);
     }
+
+
 
     // GET /api/TrainingSets/{id}
     [HttpGet("{id:guid}")]
@@ -45,6 +67,25 @@ public class TrainingSetsController : ControllerBase
         var dto = await ProjectDetail(id);
         return Ok(dto);
     }
+
+
+    // GET /api/TrainingSets/meta
+    [HttpGet("meta")]
+    public async Task<ActionResult<object>> GetMeta()
+    {
+        // 從現有資料算出可選難度清單（去空白、去重）
+        var difficulties = await _db.TrainingSets
+            .AsNoTracking()
+            .Select(s => s.Difficulty)
+            .Where(d => d != null && d != "")
+            .Distinct()
+            .OrderBy(d => d)
+            .ToListAsync();
+
+        return Ok(new { difficulties });
+    }
+
+
 
     // POST /api/TrainingSets （建立 + Items + TagIds）
     [Authorize]
@@ -289,4 +330,40 @@ public class TrainingSetsController : ControllerBase
             })
             .FirstAsync();
     }
+
+
+    // POST /api/TrainingSets/{id}/cover
+    [Authorize]
+    [HttpPost("{id:guid}/cover")]
+    public async Task<IActionResult> UploadCover(Guid id, IFormFile file)
+    {
+        if (file == null || file.Length == 0) return BadRequest("No file.");
+        var set = await _db.TrainingSets.FirstOrDefaultAsync(s => s.SetID == id);
+        if (set == null) return NotFound();
+
+        // 權限（擁有者或 Admin）
+        var me = User.GetMemberId();
+        if (set.OwnerMemberID != me && !User.IsAdmin()) return Forbid();
+
+        // 限制檔案型態/大小
+        var allowed = new[] { "image/png", "image/jpeg", "image/webp" };
+        if (!allowed.Contains(file.ContentType)) return BadRequest("Unsupported image type.");
+        if (file.Length > 2 * 1024 * 1024) return BadRequest("Max 2MB.");
+
+        var uploads = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "trainingsets");
+        Directory.CreateDirectory(uploads);
+        var ext = Path.GetExtension(file.FileName); // .png/.jpg/.webp
+        var fileName = $"{id}{ext}";
+        var fullPath = Path.Combine(uploads, fileName);
+
+        using (var fs = new FileStream(fullPath, FileMode.Create))
+            await file.CopyToAsync(fs);
+
+        var urlBase = $"{Request.Scheme}://{Request.Host}";
+        set.CoverUrl = $"{urlBase}/uploads/trainingsets/{fileName}";
+        await _db.SaveChangesAsync();
+
+        return Ok(new { coverUrl = set.CoverUrl });
+    }
+
 }

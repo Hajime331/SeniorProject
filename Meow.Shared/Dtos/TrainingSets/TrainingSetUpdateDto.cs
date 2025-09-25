@@ -11,6 +11,7 @@ namespace Meow.Shared.Dtos.TrainingSets
         string? Difficulty,
         int? EstimatedDurationSec,
         List<Guid> TagIds,
-        List<TrainingSetItemUpdateDto> Items
+        List<TrainingSetItemUpdateDto> Items,
+        string? CoverUrl
     );
 }

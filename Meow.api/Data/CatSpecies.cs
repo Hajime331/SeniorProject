@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace Meow.Api.Data;
 
-public partial class CatSpecy
+public partial class CatSpecies
 {
     public Guid CatSpeciesID { get; set; }
 
@@ -17,7 +17,7 @@ public partial class CatSpecy
 
     public DateTime CreatedAt { get; set; }
 
-    public virtual ICollection<MemberCat> MemberCats { get; set; } = new List<MemberCat>();
+    public virtual ICollection<MemberCat> MemberCat { get; set; } = new List<MemberCat>();
 
     public virtual CatPattern PatternCodeNavigation { get; set; } = null!;
 }

@@ -1,51 +1,145 @@
 ﻿@model Meow.Web.ViewModels.TrainingSets.TrainingSetIndexVm
 @{
-    ViewData["Title"] = "課表清單";
+    ViewData["Title"] = "訓練課表";
+    string minutesText(int? sec) => sec.HasValue ? $"{Math.Round(sec.Value / 60.0)} 分鐘" : "—";
 }
 
-<h2 class="mb-3">課表清單</h2>
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
 
-<form method="get" class="row g-2 mb-3">
-    <div class="col-auto">
-        <input type="text" name="keyword" class="form-control"
-               placeholder="搜尋課表名稱..."
-               value="@Model.Keyword" />
-    </div>
-    <div class="col-auto">
-        <button class="btn btn-outline-primary" type="submit">搜尋</button>
-    </div>
-</form>
+<style>
+    body { background:#f6f7fb; }
+    .card-soft { border:0; border-radius:20px; box-shadow:0 8px 20px rgba(0,0,0,.06); }
+    .chip { display:inline-block; padding:.25rem .6rem; border-radius:999px; font-size:.8rem; line-height:1; }
+    .chip-gray{ background:#eef1f4; color:#445; }
+    .chip-green{ background:#eaf7ee; color:#2f7a3f; }
+</style>
 
-@if (Model.Sets?.Any() == true)
-{
-    <div class="list-group">
-        @foreach (var s in Model.Sets)
-        {
-            <div class="list-group-item d-flex justify-content-between align-items-center">
-                <div>
-                    <div class="fw-bold">@s.Name</div>
-                    <div class="small text-muted">
-                        @s.BodyPart · @s.Equipment
-                        @if (s.Difficulty is not null)
-                        {
-                            <span> · 難度：@s.Difficulty</span>
-                        }
-                        <span> · 項目數：@s.ItemCount</span>
+<div class="container my-4">
+    <div class="row g-3">
+
+        <!-- 左側篩選區 -->
+        <aside class="col-12 col-lg-3">
+            <div class="card card-soft p-3">
+                <form method="get">
+                    <div class="mb-3">
+                        <input name="keyword" value="@Model.Keyword" class="form-control form-control-lg" placeholder="搜尋課表…" />
                     </div>
-                </div>
-                <div>
-                    <form asp-controller="TrainingSessions" asp-action="Start" method="post" class="d-inline">
-                        @Html.AntiForgeryToken()
-                        <input type="hidden" name="setId" value="@s.SetId" />
-                        <button type="submit" class="btn btn-success btn-sm">以此課表開始訓練</button>
-                    </form>
 
+                    <div class="mb-3">
+                        <div class="fw-bold mb-2">難度</div>
+                        <div class="vstack gap-1">
+                            @foreach (var diff in Model.AllDifficulties)
+                            {
+                                var isChecked = string.Equals(Model.Difficulty, diff, StringComparison.OrdinalIgnoreCase);
+                                <div class="form-check">
+                                    <input class="form-check-input" type="radio" name="difficulty" id="diff_@diff" value="@diff" checked="@(isChecked)" />
+                                    <label class="form-check-label" for="diff_@diff">@diff</label>
+                                </div>
+                            }
+                            <div class="form-check">
+                                <input class="form-check-input" type="radio" name="difficulty" id="diff_all" value="" checked="@(string.IsNullOrEmpty(Model.Difficulty))" />
+                                <label class="form-check-label" for="diff_all">全部</label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <div class="fw-bold mb-2">標籤</div>
+                        <select class="form-select" name="tagId">
+                            <option value="">— 全部 —</option>
+                            @foreach (var tag in Model.AllTags)
+                            {
+                                var sel = Model.TagId.HasValue && Model.TagId.Value == tag.TagId ? "selected" : null;
+                                <option value="@tag.TagId" selected="@sel">@tag.Name</option>
+                            }
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-funnel me-1"></i> 套用篩選
+                    </button>
+                </form>
+            </div>
+        </aside>
+
+        <!-- 右側清單 -->
+        <main class="col-12 col-lg-9">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">@Model.Sets.Count 個課表</h3>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted small">排序</span>
+                    <select id="sort" class="form-select form-select-sm rounded-pill" style="width:180px;">
+                        <option value="popular">最受歡迎</option>
+                        <option value="duration-asc">時間最短</option>
+                        <option value="duration-desc">時間最長</option>
+                    </select>
                 </div>
             </div>
-        }
+
+            <div id="grid" class="row g-3">
+                @foreach (var set in Model.Sets)
+                {
+                    <div class="col-12 col-md-6 col-lg-4 workout"
+                         data-duration="@(set.EstimatedDurationSec ?? 0)">
+                        <div class="card card-soft h-100">
+                            <!-- 如果之後有封面圖可加在這裡 -->
+                            <div class="p-3">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-1">@set.Name</h5>
+                                    @if (!string.IsNullOrWhiteSpace(set.Difficulty))
+                                    {
+                                        <span class="chip chip-gray">@set.Difficulty</span>
+                                    }
+                                </div>
+                                <div class="text-muted small mb-2">
+                                    @set.BodyPart • @set.Equipment • @minutesText(set.EstimatedDurationSec)
+                                </div>
+
+                                <div class="d-flex gap-2 mb-2">
+                                    @if (set.TagIds != null && set.TagIds.Count > 0 && Model.AllTags?.Count > 0)
+                                    {
+                                        foreach (var tid in set.TagIds.Take(3))
+                                        {
+                                            var t = Model.AllTags.FirstOrDefault(x => x.TagId == tid);
+                                            if (t != null)
+                                            {
+                                                <span class="chip chip-green">@t.Name</span>
+                                            }
+                                        }
+                                    }
+                                </div>
+
+                                <div class="d-flex gap-2">
+                                    <a asp-action="Details" asp-route-id="@set.SetId" class="btn btn-sm btn-outline-secondary">檢視</a>
+                                    <form asp-action="Start" method="post" class="d-inline">
+                                        @Html.AntiForgeryToken()
+                                        <input type="hidden" name="id" value="@set.SetId" />
+                                        <button type="submit" class="btn btn-sm btn-primary">開始訓練</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </main>
     </div>
-}
-else
-{
-    <div class="text-muted">目前沒有課表。</div>
-}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // 可選：前端排序（不動後端）
+    const grid = document.getElementById('grid');
+    document.getElementById('sort').addEventListener('change', function(){
+      const cards = [...grid.querySelectorAll('.workout')];
+      const val = this.value;
+      if(val === 'duration-asc' || val === 'duration-desc'){
+        cards.sort((a,b)=>{
+          const da = +a.dataset.duration || 0;
+          const db = +b.dataset.duration || 0;
+          return val === 'duration-asc' ? (da-db) : (db-da);
+        }).forEach(c=>grid.appendChild(c));
+      }
+    });
+</script>

@@ -11,27 +11,30 @@ public class TrainingSetsController : Controller
     public TrainingSetsController(IBackendApi api) => _api = api;
 
     // GET /TrainingSets
-    [HttpGet]
-    public async Task<IActionResult> Index(string? keyword)
+    public async Task<IActionResult> Index(string? keyword, string? difficulty, Guid? tagId)
     {
-        var sets = await _api.GetTrainingSetsAsync(keyword, "Active");
+        var sets = await _api.GetTrainingSetsAsync(keyword, "Active", difficulty, tagId);
 
         var vm = new TrainingSetIndexVm
         {
             Keyword = keyword,
-            Sets = sets
+            Difficulty = difficulty,
+            TagId = tagId,
+            Sets = sets,
+            AllTags = (await _api.GetTagsAsync()).ToList(),
+            // 可先寫死，或改成呼叫 /api/TrainingSets/meta 拿 difficulties
+            AllDifficulties = new List<string> { "初階", "中階", "高階" }
         };
-
         return View(vm);
     }
+
+
+
 
     [HttpPost]
     [ValidateAntiForgeryToken]
     public IActionResult Start(Guid id, string? note)
-    {
-        // 轉到既有 TrainingSessionsController.Start
-        return RedirectToAction("Start", "TrainingSessions", new { setId = id, note });
-    }
+        => RedirectToAction("Start", "TrainingSessions", new { setId = id, note });
 
 
     [HttpGet]
@@ -80,7 +83,8 @@ public class TrainingSetsController : Controller
             model.Difficulty,
             model.EstimatedDurationSec,
             model.SelectedTagIds ?? new List<Guid>(),
-            itemDtos
+            itemDtos,
+            null
         );
 
         await _api.CreateTrainingSetAsync(dto);

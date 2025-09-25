@@ -16,5 +16,6 @@ namespace Meow.Shared.Dtos.TrainingSets
         public string Status { get; set; } = default!;
         public List<Guid> TagIds { get; set; } = new();
         public List<TrainingSetItemDto> Items { get; set; } = new();
+        public string? CoverUrl { get; set; }
     }
 }

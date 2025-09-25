@@ -16,6 +16,9 @@ namespace Meow.Web.ViewModels.TrainingSets
         public IReadOnlyList<TagDto> AllTags { get; set; } = Array.Empty<TagDto>();
         public IReadOnlyList<TrainingVideoListItemDto> AllVideos { get; set; } = Array.Empty<TrainingVideoListItemDto>();
         public List<TrainingSetItemInputVm> Items { get; set; } = new List<TrainingSetItemInputVm>();
+
+        public IFormFile? CoverFile { get; set; }   // 上傳封面圖用
+        public string? CoverUrl { get; set; }       // 已有封面圖的 URL（Edit 用）
     }
 
     public class TrainingSetItemInputVm

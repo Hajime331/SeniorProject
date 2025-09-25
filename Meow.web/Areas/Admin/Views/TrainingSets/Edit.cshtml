@@ -1,10 +1,12 @@
 ﻿@model TrainingSetEditViewModel
 @{
     ViewData["Title"] = "Edit Training Set";
+    var tags = (IReadOnlyList<Meow.Shared.Dtos.Tags.TagDto>)ViewBag.AllTags;
+    var selected = Model?.TagIds ?? new List<Guid>();
 }
 <h2 class="mb-3">編輯課表</h2>
 
-<form method="post">
+<form method="post" enctype="multipart/form-data">
     <input type="hidden" asp-for="SetId" />
     <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
 
@@ -31,22 +33,40 @@
             <label asp-for="EstimatedDurationSec" class="form-label"></label>
             <input asp-for="EstimatedDurationSec" class="form-control" type="number" min="0" />
         </div>
-
-        <div class="col-12">
-            <label class="form-label">標籤（可多選）</label>
-            <select id="tagIds" name="TagIds" class="form-select" multiple size="6">
-                @* 由 JS 以 /api/Tags 載入選項 *@
-            </select>
-            <small class="text-muted">可用 Ctrl/Shift 多選（桌面）。之後可替換成 Select2/Choices.js。</small>
-        </div>
-
-
+        <div class="mb-3">
+            <label class="form-label fw-bold">標籤</label>
+            <div class="row row-cols-2 g-2">
+                @foreach (var t in tags)
+                {
+                    var isChecked = selected.Contains(t.TagId);
+                    <div class="col">
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox"
+                            name="TagIds" value="@t.TagId"
+                            id="tag_@t.TagId" @(isChecked ? "checked" : null) />
+                            <label class="form-check-label" for="tag_@t.TagId">@t.Name</label>
+                        </div>
+                        </div>
+                        }
+  </div>
+</div>
     </div>
 
     <hr class="my-4" />
     <h5 class="mb-2">課表項目（Items）</h5>
     <div id="items"></div>
     <button type="button" class="btn btn-outline-secondary mt-2" onclick="addItem()">＋ 新增一個項目</button>
+
+    <!-- 封面圖上傳 -->
+    <div class="mb-3">
+        <label class="form-label fw-bold">封面圖</label>
+        <input asp-for="CoverFile" type="file" class="form-control" accept="image/*" />
+        @if (!string.IsNullOrWhiteSpace(Model?.CoverUrl))
+        {
+            <div class="mt-2"><img src="@Model.CoverUrl" class="rounded" style="max-width:220px" /></div>
+        }
+        </div>
+
 
     <div class="mt-4 d-flex gap-2">
         <button class="btn btn-primary" type="submit">儲存</button>

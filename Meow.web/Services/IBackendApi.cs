@@ -123,6 +123,9 @@ namespace Meow.Web.Services
         // 供「後台 TrainingSets 清單頁」使用
         // 抓全部訓練組合清單
         Task<IReadOnlyList<TrainingSetListItemDto>> GetTrainingSetsAsync(string? keyword, string? status);
+        Task<IReadOnlyList<TrainingSetListItemDto>> GetTrainingSetsAsync(string? keyword, string? status, string? difficulty, Guid? tagId);
+
+
 
         // 抓單一訓練組合詳細資料
         Task<TrainingSetDetailDto?> GetTrainingSetAsync(Guid id);
@@ -168,6 +171,12 @@ namespace Meow.Web.Services
 
         // 更新影片的狀態
         Task UpdateTrainingVideoStatusAsync(Guid id, string status);
+
+
+        Task<string?> UploadTrainingSetCoverAsync(Guid setId, IFormFile file);
+
+
+        Task<TrainingSetDetailDto> UpdateTrainingSetAsync(TrainingSetUpdateDto dto);
 
 
     }

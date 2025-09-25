@@ -10,6 +10,7 @@ namespace Meow.Shared.Dtos.TrainingSets
         string? Difficulty,
         int? EstimatedDurationSec,
         List<Guid> TagIds,                             // 非 null；空集合可
-        List<TrainingSetItemCreateDto> Items           // 非 null；後端驗至少 1 筆
+        List<TrainingSetItemCreateDto> Items,           // 非 null；後端驗至少 1 筆
+        string? CoverUrl
     );
 }

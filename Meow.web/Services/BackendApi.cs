@@ -353,14 +353,23 @@ namespace Meow.Web.Services
         }
 
 
-        public async Task<IReadOnlyList<TrainingSetListItemDto>> GetTrainingSetsAsync(string? keyword, string? status)
+        public Task<IReadOnlyList<TrainingSetListItemDto>> GetTrainingSetsAsync(string? keyword, string? status)
+           => GetTrainingSetsAsync(keyword, status, null, null);
+
+        public async Task<IReadOnlyList<TrainingSetListItemDto>> GetTrainingSetsAsync(
+            string? keyword, string? status, string? difficulty, Guid? tagId)
         {
-            var url = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString(
-                "api/TrainingSets",
-                new Dictionary<string, string?> { ["keyword"] = keyword, ["status"] = status }
-            );
+            var qs = new Dictionary<string, string?>();
+            if (!string.IsNullOrWhiteSpace(keyword)) qs["keyword"] = keyword;
+            if (!string.IsNullOrWhiteSpace(status)) qs["status"] = status;
+            if (!string.IsNullOrWhiteSpace(difficulty)) qs["difficulty"] = difficulty;
+            if (tagId.HasValue) qs["tagId"] = tagId.ToString();
+
+            var url = Microsoft.AspNetCore.WebUtilities.QueryHelpers.AddQueryString("api/TrainingSets", qs);
             return await _http.GetFromJsonAsync<List<TrainingSetListItemDto>>(url) ?? new List<TrainingSetListItemDto>();
         }
+
+
 
 
         // 取得影片列表 (字串 CSV)
@@ -499,5 +508,24 @@ namespace Meow.Web.Services
                 throw new ApplicationException($"DeleteTrainingVideo failed: {(int)resp.StatusCode} {resp.StatusCode}\n{body}");
             }
         }
+
+
+        public async Task<string?> UploadTrainingSetCoverAsync(Guid setId, IFormFile file)
+        {
+            using var content = new MultipartFormDataContent();
+            await using var stream = file.OpenReadStream();
+            var sc = new StreamContent(stream);
+            sc.Headers.ContentType = new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType);
+            content.Add(sc, "file", file.FileName);
+
+            var resp = await _http.PostAsync($"api/TrainingSets/{setId}/cover", content);
+            var body = await resp.Content.ReadAsStringAsync();
+            if (!resp.IsSuccessStatusCode) throw new ApplicationException(body);
+
+            var dict = System.Text.Json.JsonSerializer.Deserialize<Dictionary<string, string>>(body);
+            return dict != null && dict.TryGetValue("coverUrl", out var url) ? url : null;
+        }
+
+
     }
 }
