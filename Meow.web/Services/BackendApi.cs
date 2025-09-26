@@ -495,7 +495,7 @@ namespace Meow.Web.Services
             if (!resp.IsSuccessStatusCode)
             {
                 var body = await resp.Content.ReadAsStringAsync();
-                throw new ApplicationException($"DeleteTrainingSet failed: {(int)resp.StatusCode} {resp.StatusCode}\n{body}");
+                throw new ApplicationException($"刪除失敗：{resp.StatusCode} {body}");
             }
         }
 

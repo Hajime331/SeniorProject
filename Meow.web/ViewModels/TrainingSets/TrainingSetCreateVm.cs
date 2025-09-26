@@ -30,10 +30,4 @@ namespace Meow.Web.ViewModels.TrainingSets
         public int? Rounds { get; set; }
     }
 
-    public class TrainingSetDetailVm
-    {
-        public Meow.Shared.Dtos.TrainingSets.TrainingSetDetailDto Set { get; set; } = default!;
-        public IReadOnlyList<TagDto> AllTags { get; set; } = Array.Empty<TagDto>();
-        public IReadOnlyList<TrainingVideoListItemDto> AllVideos { get; set; } = Array.Empty<TrainingVideoListItemDto>();
-    }
 }

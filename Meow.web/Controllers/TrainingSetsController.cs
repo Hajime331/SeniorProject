@@ -96,17 +96,37 @@ public class TrainingSetsController : Controller
     [HttpGet]
     public async Task<IActionResult> Details(Guid id)
     {
-        var set = await _api.GetTrainingSetAsync(id);
-        if (set == null) return NotFound();
-        var tags = await _api.GetTagsAsync();
-        // 取出所有影片清單，以便顯示項目中的影片名稱
-        var videos = await _api.GetTrainingVideosAsync(null, null, tagIdsCsv: null);
+        var dto = await _api.GetTrainingSetAsync(id);
+
+        if (dto == null) return NotFound();
+
+        var videos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
+
+
         var vm = new TrainingSetDetailVm
         {
-            Set = set,
-            AllTags = tags.ToList(),
-            AllVideos = videos.ToList()
+            SetId = dto.SetID,
+            Name = dto.Name,
+            BodyPart = dto.BodyPart,
+            Equipment = dto.Equipment,
+            Difficulty = dto.Difficulty,
+            EstimatedDurationSec = dto.EstimatedDurationSec,
+            Status = dto.Status,
+            CoverUrl = dto.CoverUrl,
+            TagIds = dto.TagIds,
+            Items = dto.Items.Select(i => new TrainingSetItemDetailVm
+            {
+                SetItemId = i.SetItemId,
+                VideoId = i.VideoId,
+                VideoTitle = videos.FirstOrDefault(v => v.VideoId == i.VideoId)?.Title ?? "(未知影片)",
+                OrderNo = i.OrderNo,
+                TargetReps = i.TargetReps,
+                RestSec = i.RestSec,
+                Rounds = i.Rounds
+            }).ToList()
         };
+
         return View(vm);
     }
+
 }

@@ -1,8 +1,9 @@
-﻿using System.Net.Http.Json;
-using Meow.Shared.Dtos.TrainingSets;
+﻿using Meow.Shared.Dtos.TrainingSets;
 using Meow.Web.Services;
+using Meow.Web.ViewModels.TrainingSets;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Net.Http.Json;
 
 namespace Meow.Web.Areas.Admin.Controllers
 {
@@ -14,10 +15,39 @@ namespace Meow.Web.Areas.Admin.Controllers
         public TrainingSetsController(IBackendApi api) => _api = api;
 
         // GET: Admin/TrainingSets
-        public async Task<IActionResult> Index(string? keyword, string? status = "Active")
+        public async Task<IActionResult> Index(
+            string? keyword,
+            string? status,
+            string? difficulty,
+            Guid? tagId)
         {
-            var list = await _api.GetTrainingSetsAsync(keyword, status);
-            return View(list.ToList());
+            // 1) 呼叫 API 取清單
+            var sets = await _api.GetTrainingSetsAsync(
+                keyword,
+                string.IsNullOrWhiteSpace(status) ? "Active" : status,
+                difficulty,
+                tagId
+            );
+
+            // 2) 取篩選用資料（Tag / 難度清單）
+            var tags = await _api.GetTagsAsync();
+            var difficulties = new List<string> { "初階", "中階", "高階" }; // 依你實際枚舉調整
+
+            // 3) 包成 VM
+            var vm = new TrainingSetIndexVm
+            {
+                Keyword = keyword,
+                Difficulty = difficulty,
+                TagId = tagId,
+
+                AllTags = tags,
+                AllDifficulties = difficulties,
+
+                Sets = sets
+            };
+
+            // 4) 回傳 VM（不要直接回 List）
+            return View(vm);
         }
 
         // GET: Admin/TrainingSets/Create
@@ -195,6 +225,44 @@ namespace Meow.Web.Areas.Admin.Controllers
             }
         }
 
+        // GET: Admin/TrainingSets/Detail/{id}
+        public async Task<IActionResult> Detail(Guid id)
+        {
+            if (id == Guid.Empty)
+                return NotFound();
+
+            var dto = await _api.GetTrainingSetAsync(id);
+
+            if (dto == null)
+                return NotFound();
+
+            var videos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
+
+            var vm = new TrainingSetDetailVm
+            {
+                SetId = dto.SetID,
+                Name = dto.Name,
+                BodyPart = dto.BodyPart,
+                Equipment = dto.Equipment,
+                Difficulty = dto.Difficulty,
+                EstimatedDurationSec = dto.EstimatedDurationSec,
+                Status = dto.Status,
+                CoverUrl = dto.CoverUrl,
+                TagIds = dto.TagIds,
+                Items = dto.Items.Select(i => new TrainingSetItemDetailVm
+                {
+                    SetItemId = i.SetItemId,
+                    VideoId = i.VideoId,
+                    VideoTitle = videos.FirstOrDefault(v => v.VideoId == i.VideoId)?.Title ?? "(未知影片)",
+                    OrderNo = i.OrderNo,
+                    TargetReps = i.TargetReps,
+                    RestSec = i.RestSec,
+                    Rounds = i.Rounds
+                }).ToList()
+            };
+
+            return View(vm);
+        }
 
 
 
@@ -203,6 +271,7 @@ namespace Meow.Web.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Delete(Guid id)
         {
+            if (id == Guid.Empty) return NotFound();
             try
             {
                 await _api.DeleteTrainingSetAsync(id);

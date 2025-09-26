@@ -350,7 +350,7 @@ public class TrainingSetsController : ControllerBase
         // 限制檔案型態/大小
         var allowed = new[] { "image/png", "image/jpeg", "image/webp" };
         if (!allowed.Contains(file.ContentType)) return BadRequest("Unsupported image type.");
-        if (file.Length > 2 * 1024 * 1024) return BadRequest("Max 2MB.");
+        if (file.Length > 5 * 1024 * 1024) return BadRequest("Max 5MB.");
 
         var uploads = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "trainingsets");
         Directory.CreateDirectory(uploads);

@@ -48,7 +48,7 @@ else
                 <div class="card h-100 shadow-sm">
                     @if (!string.IsNullOrWhiteSpace(v.ThumbnailUrl))
                     {
-                        <img src="@v.ThumbnailUrl" class="card-img-top" alt="@v.Title" />
+                        <img src="@v.ThumbnailUrl" class="rounded-top" alt="@v.Title" />
                     }
                     <div class="card-body">
                         <h5 class="card-title text-truncate mb-1">@v.Title</h5>
