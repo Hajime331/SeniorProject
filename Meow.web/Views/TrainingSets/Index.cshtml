@@ -64,66 +64,40 @@
         </aside>
 
         <!-- 右側清單 -->
-        <main class="col-12 col-lg-9">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h3 class="mb-0">@Model.Sets.Count 個課表</h3>
-                <div class="d-flex align-items-center gap-2">
-                    <span class="text-muted small">排序</span>
-                    <select id="sort" class="form-select form-select-sm rounded-pill" style="width:180px;">
-                        <option value="popular">最受歡迎</option>
-                        <option value="duration-asc">時間最短</option>
-                        <option value="duration-desc">時間最長</option>
-                    </select>
-                </div>
-            </div>
-
-            <div id="grid" class="row g-3">
+        <div class="col-12 col-lg-9">
+            <div class="row row-cols-1 row-cols-md-3 g-3">
                 @foreach (var set in Model.Sets)
                 {
-                    <div class="col-12 col-md-6 col-lg-4 workout"
-                         data-duration="@(set.EstimatedDurationSec ?? 0)">
-                        <div class="card card-soft h-100">
-                            <!-- 如果之後有封面圖可加在這裡 -->
-                            <div class="p-3">
-                                <div class="d-flex justify-content-between align-items-center">
-                                    <h5 class="mb-1">@set.Name</h5>
-                                    @if (!string.IsNullOrWhiteSpace(set.Difficulty))
-                                    {
-                                        <span class="chip chip-gray">@set.Difficulty</span>
-                                    }
+                    <div class="col">
+                        <div class="card h-100 shadow-sm">
+                            @if (!string.IsNullOrWhiteSpace(set.CoverUrl))
+                            {
+                                <div style="height:180px;background:#f2f3f5 url('@set.CoverUrl') center/cover no-repeat;"></div>
+                            }
+                            else
+                            {
+                                <div style="height:180px;background:#f2f3f5;"
+                                     class="d-flex align-items-center justify-content-center text-muted">
+                                    無封面
                                 </div>
-                                <div class="text-muted small mb-2">
-                                    @set.BodyPart • @set.Equipment • @minutesText(set.EstimatedDurationSec)
-                                </div>
+                            }
 
-                                <div class="d-flex gap-2 mb-2">
-                                    @if (set.TagIds != null && set.TagIds.Count > 0 && Model.AllTags?.Count > 0)
+                            <div class="card-body">
+                                <h5 class="card-title">@set.Name</h5>
+                                <p class="text-muted small mb-2">
+                                    難度：@(string.IsNullOrWhiteSpace(set.Difficulty) ? "—" : set.Difficulty)
+                                    @if (set.EstimatedDurationSec.HasValue)
                                     {
-                                        foreach (var tid in set.TagIds.Take(3))
-                                        {
-                                            var t = Model.AllTags.FirstOrDefault(x => x.TagId == tid);
-                                            if (t != null)
-                                            {
-                                                <span class="chip chip-green">@t.Name</span>
-                                            }
-                                        }
+                                        <text>　時間：@Math.Round(set.EstimatedDurationSec.Value / 60.0) 分</text>
                                     }
-                                </div>
-
-                                <div class="d-flex gap-2">
-                                    <a asp-action="Details" asp-route-id="@set.SetId" class="btn btn-sm btn-outline-secondary">檢視</a>
-                                    <form asp-action="Start" method="post" class="d-inline">
-                                        @Html.AntiForgeryToken()
-                                        <input type="hidden" name="id" value="@set.SetId" />
-                                        <button type="submit" class="btn btn-sm btn-primary">開始訓練</button>
-                                    </form>
-                                </div>
+                                </p>
+                                <a asp-action="Details" asp-route-id="@set.SetId" class="btn btn-sm btn-outline-primary">查看</a>
                             </div>
                         </div>
                     </div>
                 }
             </div>
-        </main>
+        </div>
     </div>
 </div>
 

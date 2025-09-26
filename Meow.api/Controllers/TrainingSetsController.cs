@@ -48,7 +48,8 @@ public class TrainingSetsController : ControllerBase
                 s.Difficulty,
                 s.EstimatedDurationSec,
                 _db.SetTagMaps.Where(m => m.SetID == s.SetID).Select(m => m.TagID).ToList(),
-                _db.TrainingSetItems.Count(i => i.SetID == s.SetID)
+                _db.TrainingSetItems.Count(i => i.SetID == s.SetID),
+                s.CoverUrl
             ))
             .ToListAsync();
 
@@ -321,6 +322,7 @@ public class TrainingSetsController : ControllerBase
                 IsCustom = s.IsCustom,
                 OwnerMemberID = s.OwnerMemberID,
                 Status = s.Status,
+                CoverUrl = s.CoverUrl,
                 TagIds = _db.SetTagMaps.Where(m => m.SetID == s.SetID).Select(m => m.TagID).ToList(),
                 Items = _db.TrainingSetItems
                     .Where(i => i.SetID == s.SetID)

@@ -14,17 +14,18 @@ public class TrainingSetsController : Controller
     public async Task<IActionResult> Index(string? keyword, string? difficulty, Guid? tagId)
     {
         var sets = await _api.GetTrainingSetsAsync(keyword, "Active", difficulty, tagId);
+        var tags = await _api.GetTagsAsync();
 
         var vm = new TrainingSetIndexVm
         {
             Keyword = keyword,
             Difficulty = difficulty,
             TagId = tagId,
-            Sets = sets,
-            AllTags = (await _api.GetTagsAsync()).ToList(),
-            // 可先寫死，或改成呼叫 /api/TrainingSets/meta 拿 difficulties
-            AllDifficulties = new List<string> { "初階", "中階", "高階" }
+            AllTags = tags,
+            // AllDifficulties 如有需要也可塞（固定 3~4 種字串）
+            Sets = sets // ← 關鍵：List 包進去
         };
+
         return View(vm);
     }
 
