@@ -137,7 +137,7 @@ namespace Meow.Web.Areas.Admin.Controllers
                 return View(vm);
             }
 
-            // 1) Items → Update DTO（用物件初始化器）
+            // Items → Update DTO（TrainingSetItemUpdateDto 是屬性型，請用物件初始化器）
             var items = (vm.Items ?? new List<TrainingSetItemEditViewModel>())
                 .Select(i => new TrainingSetItemUpdateDto
                 {
@@ -150,7 +150,6 @@ namespace Meow.Web.Areas.Admin.Controllers
                 })
                 .ToList();
 
-            // 2) Update DTO；CoverUrl 先給 null，改由獨立上傳端點處理
             var dto = new TrainingSetUpdateDto(
                 vm.SetId!.Value,
                 vm.Name?.Trim() ?? "",
@@ -160,19 +159,33 @@ namespace Meow.Web.Areas.Admin.Controllers
                 vm.EstimatedDurationSec,
                 vm.TagIds ?? new List<Guid>(),
                 items,
-                null
+                null // CoverUrl 交由上傳端點處理
             );
 
             try
             {
-                // ★ IBackendApi 目前可用的是這個簽名（id + dto）
-                await _api.UpdateTrainingSetAsync(vm.SetId.Value, dto);  // ← 修正呼叫方式 :contentReference[oaicite:1]{index=1}
+                await _api.UpdateTrainingSetAsync(vm.SetId.Value, dto);
 
+                // 有選檔案 → 呼叫上傳端點
                 if (vm.CoverFile is not null && vm.CoverFile.Length > 0)
-                    await _api.UploadTrainingSetCoverAsync(vm.SetId.Value, vm.CoverFile); // :contentReference[oaicite:2]{index=2}
+                {
+                    try
+                    {
+                        var url = await _api.UploadTrainingSetCoverAsync(vm.SetId.Value, vm.CoverFile);
+                        TempData["Ok"] = url is not null ? "封面已上傳並更新。" : "封面已上傳。";
+                    }
+                    catch (Exception ex)
+                    {
+                        TempData["Err"] = "封面上傳失敗：" + ex.Message;
+                    }
+                }
+                else
+                {
+                    TempData["Ok"] = "課表內容已更新。";
+                }
 
-                TempData["Ok"] = "已更新課表。";
-                return RedirectToAction(nameof(Index));
+                // 重新導回 Edit（PRG 模式，避免重送表單），會在頁面顯示訊息與最新縮圖
+                return RedirectToAction(nameof(Edit), new { id = vm.SetId.Value });
             }
             catch (ApplicationException ex)
             {
@@ -181,6 +194,7 @@ namespace Meow.Web.Areas.Admin.Controllers
                 return View(vm);
             }
         }
+
 
 
 
@@ -200,6 +214,20 @@ namespace Meow.Web.Areas.Admin.Controllers
             }
             return RedirectToAction(nameof(Index));
         }
+
+
+        [HttpGet]
+        public async Task<IActionResult> SearchVideos(string? q)
+        {
+            var list = await _api.GetTrainingVideosAsync(q, "Published", (string?)null);
+            var result = list.Select(v => new {
+                videoId = v.VideoId,     // 依你的 DTO 實際屬性命名調整
+                title = v.Title,
+                durationSec = v.DurationSec
+            });
+            return Json(result);
+        }
+
     }
 
 }

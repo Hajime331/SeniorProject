@@ -1,189 +1,247 @@
 ﻿@model TrainingSetEditViewModel
 @{
-    ViewData["Title"] = "Edit Training Set";
+    ViewData["Title"] = "編輯課表";
     var tags = (IReadOnlyList<Meow.Shared.Dtos.Tags.TagDto>)ViewBag.AllTags;
-    var selected = Model?.TagIds ?? new List<Guid>();
 }
-<h2 class="mb-3">編輯課表</h2>
 
-<form method="post" enctype="multipart/form-data">
-    <input type="hidden" asp-for="SetId" />
-    <div asp-validation-summary="ModelOnly" class="text-danger mb-2"></div>
+<div class="container my-4">
+    <h3 class="mb-3">編輯課表</h3>
 
-    <div class="row g-3">
-        <div class="col-md-6">
-            <label asp-for="Name" class="form-label"></label>
-            <input asp-for="Name" class="form-control" />
-            <span asp-validation-for="Name" class="text-danger"></span>
+    @* 成功/失敗訊息 *@
+    @if (TempData["Ok"] is string okMsg)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            @okMsg
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-        <div class="col-md-3">
-            <label asp-for="BodyPart" class="form-label"></label>
-            <input asp-for="BodyPart" class="form-control" />
+    }
+    @if (TempData["Err"] is string errMsg)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            @errMsg
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         </div>
-        <div class="col-md-3">
-            <label asp-for="Equipment" class="form-label"></label>
-            <input asp-for="Equipment" class="form-control" />
-        </div>
+    }
 
-        <div class="col-md-3">
-            <label asp-for="Difficulty" class="form-label"></label>
-            <input asp-for="Difficulty" class="form-control" />
-        </div>
-        <div class="col-md-3">
-            <label asp-for="EstimatedDurationSec" class="form-label"></label>
-            <input asp-for="EstimatedDurationSec" class="form-control" type="number" min="0" />
-        </div>
-        <div class="mb-3">
-            <label class="form-label fw-bold">標籤</label>
-            <div class="row row-cols-2 g-2">
-                @foreach (var t in tags)
-                {
-                    var isChecked = selected.Contains(t.TagId);
-                    <div class="col">
-                        <div class="form-check">
-                            <input class="form-check-input" type="checkbox"
-                            name="TagIds" value="@t.TagId"
-                            id="tag_@t.TagId" @(isChecked ? "checked" : null) />
-                            <label class="form-check-label" for="tag_@t.TagId">@t.Name</label>
+    <form asp-action="Edit" method="post" enctype="multipart/form-data">
+        @Html.AntiForgeryToken()
+        <input type="hidden" asp-for="SetId" />
+
+        <div class="row g-3">
+            <div class="col-lg-8">
+
+                <div class="mb-3">
+                    <label asp-for="Name" class="form-label fw-bold"></label>
+                    <input asp-for="Name" class="form-control" />
+                    <span asp-validation-for="Name" class="text-danger"></span>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label asp-for="BodyPart" class="form-label fw-bold">訓練部位</label>
+                        <input asp-for="BodyPart" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Equipment" class="form-label fw-bold">器材</label>
+                        <input asp-for="Equipment" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="Difficulty" class="form-label fw-bold">難度</label>
+                        <input asp-for="Difficulty" class="form-control" />
+                    </div>
+                    <div class="col-md-6">
+                        <label asp-for="EstimatedDurationSec" class="form-label fw-bold">預估秒數</label>
+                        <input asp-for="EstimatedDurationSec" class="form-control" type="number" min="0" />
+                    </div>
+                </div>
+
+                <hr>
+
+                <h5 class="mb-2">課表項目 Items</h5>
+
+                <div id="items">
+                    @for (int i = 0; i < Model.Items.Count; i++)
+                    {
+                        <div class="card mb-2 training-item" data-index="@i">
+                            <div class="card-body">
+                                <div class="row g-2 align-items-end">
+                                    <input type="hidden" name="Items[@i].SetItemId" value="@Model.Items[i].SetItemId" />
+
+                                    <div class="col-12">
+                                        <label class="form-label">影片</label>
+                                        <input type="hidden" name="Items[@i].VideoId" value="@Model.Items[i].VideoId" class="video-id" />
+                                        <input type="text" class="form-control video-search"
+                                               placeholder="輸入關鍵字搜尋影片…" data-target="#video-list-@i" autocomplete="off" />
+                                        <div class="list-group position-absolute w-100 shadow-sm d-none"
+                                             id="video-list-@i" style="z-index:1000; max-height:240px; overflow:auto;"></div>
+                                        <small class="text-muted">已選：<span class="chosen-title">@Model.Items[i].VideoId</span></small>
+                                    </div>
+
+                                    <div class="col-3">
+                                        <label class="form-label">順序</label>
+                                        <input name="Items[@i].OrderNo" class="form-control" type="number" value="@Model.Items[i].OrderNo" />
+                                    </div>
+                                    <div class="col-3">
+                                        <label class="form-label">次數</label>
+                                        <input name="Items[@i].TargetReps" class="form-control" type="number" value="@Model.Items[i].TargetReps" />
+                                    </div>
+                                    <div class="col-3">
+                                        <label class="form-label">休息秒</label>
+                                        <input name="Items[@i].RestSec" class="form-control" type="number" value="@Model.Items[i].RestSec" />
+                                    </div>
+                                    <div class="col-3">
+                                        <label class="form-label">回合</label>
+                                        <input name="Items[@i].Rounds" class="form-control" type="number" value="@Model.Items[i].Rounds" />
+                                    </div>
+                                </div>
+                            </div>
                         </div>
-                        </div>
+                    }
+                </div>
+
+                <button type="button" class="btn btn-outline-secondary btn-sm mb-3" id="btnAddItem">
+                    新增一列
+                </button>
+
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-primary">儲存</button>
+                </div>
+            </div>
+
+            <div class="col-lg-4">
+                <div class="mb-3">
+                    <label class="form-label fw-bold">封面圖</label>
+                    <input asp-for="CoverFile" type="file" class="form-control" accept="image/*" id="coverFile" />
+                    <div class="mt-2">
+                        <img id="coverPreview"
+                             src="@(string.IsNullOrWhiteSpace(Model?.CoverUrl) ? "" : Model.CoverUrl)"
+                             class="rounded border" style="max-width:220px;@(string.IsNullOrWhiteSpace(Model?.CoverUrl) ? "display:none" : "")" />
+                    </div>
+                    <div class="form-text">選擇檔案後會即時預覽，按「儲存」才會上傳。</div>
+                </div>
+
+                <div class="mb-3">
+                    <label class="form-label fw-bold">標籤</label>
+                    @{
+                        var selected = Model?.TagIds ?? new List<Guid>();
+                    }
+                    <div class="row row-cols-2 g-2">
+                        @foreach (var t in tags)
+                        {
+                            var isChecked = selected.Contains(t.TagId);
+                            <div class="col">
+                                <div class="form-check">
+                                    <input class="form-check-input" type="checkbox" name="TagIds" value="@t.TagId"
+                                           id="tag_@t.TagId" @(isChecked ? "checked" : null) />
+                                    <label class="form-check-label" for="tag_@t.TagId">@t.Name</label>
+                                </div>
+                            </div>
                         }
-  </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </form>
 </div>
-    </div>
 
-    <hr class="my-4" />
-    <h5 class="mb-2">課表項目（Items）</h5>
-    <div id="items"></div>
-    <button type="button" class="btn btn-outline-secondary mt-2" onclick="addItem()">＋ 新增一個項目</button>
-
-    <!-- 封面圖上傳 -->
-    <div class="mb-3">
-        <label class="form-label fw-bold">封面圖</label>
-        <input asp-for="CoverFile" type="file" class="form-control" accept="image/*" />
-        @if (!string.IsNullOrWhiteSpace(Model?.CoverUrl))
-        {
-            <div class="mt-2"><img src="@Model.CoverUrl" class="rounded" style="max-width:220px" /></div>
-        }
-        </div>
-
-
-    <div class="mt-4 d-flex gap-2">
-        <button class="btn btn-primary" type="submit">儲存</button>
-        <a class="btn btn-secondary" asp-area="Admin" asp-controller="TrainingSets" asp-action="Index">返回列表</a>
-    </div>
-
-</form>
-
-<template id="item-row">
-    <div class="card mb-2 p-3 item-row">
-        <input type="hidden" name="Items[index].SetItemId" />
-        <div class="row g-2 align-items-end">
-            <div class="col-md-4">
-                <label class="form-label">VideoId (GUID)</label>
-                <input class="form-control" name="Items[index].VideoId" />
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">OrderNo</label>
-                <input class="form-control" name="Items[index].OrderNo" type="number" min="1" />
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">TargetReps</label>
-                <input class="form-control" name="Items[index].TargetReps" type="number" min="0" />
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">RestSec</label>
-                <input class="form-control" name="Items[index].RestSec" type="number" min="0" />
-            </div>
-            <div class="col-md-2">
-                <label class="form-label">Rounds</label>
-                <input class="form-control" name="Items[index].Rounds" type="number" min="0" />
-            </div>
-        </div>
-        <div class="mt-2 text-end">
-            <button type="button" class="btn btn-sm btn-outline-danger" onclick="removeItem(this)">移除</button>
-        </div>
-    </div>
-</template>
-
-@section Scripts{
-    <partial name="_ValidationScriptsPartial" />
+@section Scripts {
     <script>
-        let itemCount = 0;
-
-        function addItem(data) {
-            const tpl = document.getElementById('item-row').content.cloneNode(true);
-            tpl.querySelectorAll('input[name]').forEach(inp => {
-                inp.name = inp.name.replace('index', itemCount);
+        // 即時預覽封面
+        (function(){
+          const input = document.getElementById('coverFile');
+          const preview = document.getElementById('coverPreview');
+          if (input && preview) {
+            input.addEventListener('change', e => {
+              const [file] = e.target.files || [];
+              if (file) { preview.src = URL.createObjectURL(file); preview.style.display=''; }
             });
-            if (data) {
-                tpl.querySelector(`input[name="Items[${itemCount}].SetItemId"]`).value = data.setItemId || '';
-                tpl.querySelector(`input[name="Items[${itemCount}].VideoId"]`).value = data.videoId || '';
-                tpl.querySelector(`input[name="Items[${itemCount}].OrderNo"]`).value = data.orderNo ?? '';
-                tpl.querySelector(`input[name="Items[${itemCount}].TargetReps"]`).value = data.targetReps ?? '';
-                tpl.querySelector(`input[name="Items[${itemCount}].RestSec"]`).value = data.restSec ?? '';
-                tpl.querySelector(`input[name="Items[${itemCount}].Rounds"]`).value = data.rounds ?? '';
-            }
-            document.getElementById('items').appendChild(tpl);
-            itemCount++;
+          }
+        })();
+
+        // 影片搜尋（與 Create 共用）
+        const debounce = (fn, d=250) => { let t; return (...a)=>{ clearTimeout(t); t=setTimeout(()=>fn(...a), d);} };
+
+        async function fetchVideos(q){
+          if(!q || q.length < 2) return [];
+          const res = await fetch('@Url.Action("SearchVideos")?q='+encodeURIComponent(q));
+          if(!res.ok) return [];
+          return await res.json();
         }
 
-        function removeItem(btn){
-            btn.closest('.item-row').remove();
-        }
+        function bindVideoSearch(container){
+          const input  = container.querySelector('.video-search');
+          const list   = document.querySelector(input.dataset.target);
+          const hidden = container.querySelector('.video-id');
+          const chosen = container.querySelector('.chosen-title');
 
-        // 初始載入：把 Model.Items 映到表單
-        const initItems = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(
-                            Model.Items.Select(i => new {
-                                setItemId = i.SetItemId,
-                                videoId = i.VideoId,
-                                orderNo = i.OrderNo,
-                                targetReps = i.TargetReps,
-                                restSec = i.RestSec,
-                                rounds = i.Rounds
-                            })
-                        ));
-        if (initItems?.length) initItems.forEach(addItem); else addItem();
-
-        // 轉換 TagIds CSV → 多值欄位
-        document.querySelector('form').addEventListener('submit', e => {
-            const csv = document.querySelector('input[name="TagIdsCsv"]').value.trim();
-            const container = document.querySelector('input[name="TagIds"]').parentElement;
-            document.querySelectorAll('input[name="TagIds"]').forEach(x=>x.remove());
-            if (csv) csv.split(',').map(s=>s.trim()).forEach(g=>{
-                const hidden=document.createElement('input');
-                hidden.type='hidden'; hidden.name='TagIds'; hidden.value=g; container.appendChild(hidden);
+          const render = (items) => {
+            list.innerHTML = '';
+            items.forEach(v=>{
+              const a = document.createElement('a');
+              a.href="#"; a.className="list-group-item list-group-item-action";
+              const mins = v.durationSec ? Math.round(v.durationSec/60) : 0;
+              a.textContent = `${v.title} • ${mins} 分`;
+              a.addEventListener('click', e=>{
+                e.preventDefault();
+                hidden.value = v.videoId;
+                chosen.textContent = v.title;
+                list.classList.add('d-none'); input.value='';
+              });
+              list.appendChild(a);
             });
-        });
+            list.classList.toggle('d-none', items.length===0);
+          };
 
+          input.addEventListener('input', debounce(async ()=>{
+            const q = input.value.trim();
+            render(await fetchVideos(q));
+          }));
 
-        async function loadTags(selected = []) {
-            try {
-                // 你已有的 Tag API，可過濾 Active
-                const res = await fetch('/api/Tags?status=Active');
-                if (!res.ok) throw new Error('load tags failed');
-                const data = await res.json();
-
-                // 依你的 DTO 欄位調整：預設用 tagId/name
-                const sel = document.getElementById('tagIds');
-                sel.innerHTML = '';
-
-                data.forEach(t => {
-                    const opt = document.createElement('option');
-                    opt.value = t.tagId;       // 若是 t.id -> 改成 t.id
-                    opt.textContent = t.name;  // 若是 t.title -> 改成 t.title
-                    if (selected.includes(t.tagId)) opt.selected = true;
-                    sel.appendChild(opt);
-                });
-            } catch (e) {
-                console.error(e);
-            }
+          document.addEventListener('click', (e)=>{
+            if(!container.contains(e.target)) list.classList.add('d-none');
+          });
         }
 
-        document.addEventListener('DOMContentLoaded', () => {
-            // Create 頁：Model.TagIds 可能為空陣列；Edit 頁：可帶既有值預選
-            const preSelected = @Html.Raw(System.Text.Json.JsonSerializer.Serialize(Model?.TagIds ?? new List<Guid>()));
-            loadTags(preSelected);
+        document.querySelectorAll('.training-item').forEach(bindVideoSearch);
+
+        // 動態新增列
+        document.getElementById('btnAddItem')?.addEventListener('click', ()=>{
+          const items = document.getElementById('items');
+          const i = items.querySelectorAll('.training-item').length;
+          const html = `
+          <div class="card mb-2 training-item" data-index="${i}">
+            <div class="card-body">
+              <div class="row g-2 align-items-end">
+                <input type="hidden" name="Items[${i}].SetItemId" />
+                <div class="col-12">
+                  <label class="form-label">影片</label>
+                  <input type="hidden" name="Items[${i}].VideoId" class="video-id" />
+                  <input type="text" class="form-control video-search" placeholder="輸入關鍵字搜尋影片…" data-target="#video-list-${i}" autocomplete="off" />
+                  <div class="list-group position-absolute w-100 shadow-sm d-none" id="video-list-${i}" style="z-index:1000; max-height:240px; overflow:auto;"></div>
+                  <small class="text-muted">已選：<span class="chosen-title"></span></small>
+                </div>
+                <div class="col-3">
+                  <label class="form-label">順序</label>
+                  <input name="Items[${i}].OrderNo" class="form-control" type="number" value="${i+1}" />
+                </div>
+                <div class="col-3">
+                  <label class="form-label">次數</label>
+                  <input name="Items[${i}].TargetReps" class="form-control" type="number" />
+                </div>
+                <div class="col-3">
+                  <label class="form-label">休息秒</label>
+                  <input name="Items[${i}].RestSec" class="form-control" type="number" />
+                </div>
+                <div class="col-3">
+                  <label class="form-label">回合</label>
+                  <input name="Items[${i}].Rounds" class="form-control" type="number" value="1" />
+                </div>
+              </div>
+            </div>
+          </div>`;
+          items.insertAdjacentHTML('beforeend', html);
+          const last = items.querySelector('.training-item:last-child');
+          bindVideoSearch(last);
         });
     </script>
 }
