@@ -12,6 +12,8 @@ namespace Meow.Web.ViewModels.TrainingSets
         public string? Difficulty { get; set; }
         public Guid? TagId { get; set; }
 
+        public string? Status { get; set; }
+
         // 清單
         public IReadOnlyList<TrainingSetListItemDto> Sets { get; set; } = new List<TrainingSetListItemDto>();
 

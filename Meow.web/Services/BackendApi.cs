@@ -442,6 +442,30 @@ namespace Meow.Web.Services
         }
 
 
+        public async Task<string?> UploadTrainingVideoThumbnailAsync(Guid videoId, IFormFile file)
+        {
+            using var form = new MultipartFormDataContent();
+            await using var fs = file.OpenReadStream();
+            var sc = new StreamContent(fs);
+            sc.Headers.ContentType =
+                new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType ?? "application/octet-stream");
+            form.Add(sc, "file", file.FileName);
+
+            var resp = await _http.PostAsync($"api/TrainingVideos/{videoId}/thumbnail", form);
+            if (!resp.IsSuccessStatusCode) return null;
+
+            try
+            {
+                var obj = await resp.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+                return obj != null && obj.TryGetValue("url", out var url) ? url : await resp.Content.ReadAsStringAsync();
+            }
+            catch
+            {
+                return await resp.Content.ReadAsStringAsync();
+            }
+        }
+
+
         public Task<TrainingSetDetailDto?> GetTrainingSetAsync(Guid id)
             => _http.GetFromJsonAsync<TrainingSetDetailDto>($"api/TrainingSets/{id}");
 

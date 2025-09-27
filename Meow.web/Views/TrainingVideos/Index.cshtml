@@ -1,82 +1,89 @@
 ﻿@model Meow.Web.ViewModels.TrainingVideos.TrainingVideoIndexVm
 @{
     ViewData["Title"] = "訓練影片";
-    // 先準備目前選中的單一標籤（若是多選 List<Guid>，取第一個即可）
-    var selectedTagId = Model.SelectedTagIds != null && Model.SelectedTagIds.Count > 0
-        ? Model.SelectedTagIds[0]
-        : (Guid?)null;
+    string Minutes(int? sec) => sec.HasValue ? $"{Math.Round(sec.Value / 60.0)} 分" : "—";
+    var selectedTagId = Model.SelectedTagIds?.FirstOrDefault();
 }
 
-<h2 class="mb-3">訓練影片</h2>
+<div class="container my-4 mb-5">
+    <div class="row g-4">
 
-<form id="filterForm" asp-action="Index" method="get" class="border rounded p-3 mb-4">
-    <div class="row g-2 align-items-end">
-        <div class="col-md-5">
-            <label class="form-label">關鍵字</label>
-            <input id="keywordInput" name="keyword" class="form-control" value="@Model.Keyword" placeholder="搜尋標題、部位…" />
-        </div>
-
-        <div class="col-md-5">
-            <label class="form-label">標籤</label>
-            @* 單選下拉。保留參數名 "tagIds"（Controller 若用 List<Guid> 仍可繫結單一值） *@
-            <select id="tagSelect" name="tagIds" class="form-select">
-                <option value="">全部標籤</option>
-                @foreach (var t in Model.AllTags)
-                {
-                    <option value="@t.TagId">@t.Name</option>
-                }
-            </select>
-        </div>
-
-        <div class="col-md-2 d-flex gap-2">
-            <button class="btn btn-primary flex-fill">篩選</button>
-            <button id="clearBtn" type="button" class="btn btn-outline-secondary flex-fill">清空</button>
-        </div>
-    </div>
-</form>
-
-@if (Model.Videos == null || !Model.Videos.Any())
-{
-    <div class="alert alert-info">目前沒有符合條件的影片。</div>
-}
-else
-{
-    <div class="row row-cols-1 row-cols-md-3 g-3">
-        @foreach (var v in Model.Videos)
-        {
-            <div class="col">
-                <div class="card h-100 shadow-sm">
-                    @if (!string.IsNullOrWhiteSpace(v.ThumbnailUrl))
-                    {
-                        <img src="@v.ThumbnailUrl" class="rounded-top" alt="@v.Title" />
-                    }
-                    <div class="card-body">
-                        <h5 class="card-title text-truncate mb-1">@v.Title</h5>
-                        <div class="small text-muted mb-2">
-                            部位：@v.BodyPart　/　時長：@v.DurationSec 秒
+        <!-- 左：單選下拉 -->
+        <div class="col-12 col-lg-3">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white"><strong>搜尋與條件</strong></div>
+                <div class="card-body">
+                    <form method="get">
+                        <div class="mb-3">
+                            <label class="form-label">關鍵字</label>
+                            <input name="keyword" class="form-control" value="@Model.Keyword" placeholder="影片名稱" />
                         </div>
-                        <a asp-action="Details" asp-route-id="@v.VideoId" class="btn btn-outline-primary btn-sm">查看</a>
-                    </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">標籤</label>
+                            <select name="tagId" class="form-select">
+                                <option value="">全部</option>
+                                @foreach (var t in Model.AllTags)
+                                {
+                                    var sel = selectedTagId.HasValue && selectedTagId.Value == t.TagId ? "selected" : null;
+                                    <option value="@t.TagId" selected="@sel">@t.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">套用</button>
+                        </div>
+                    </form>
                 </div>
             </div>
-        }
+        </div>
+
+        <!-- 右：清單（顯示縮圖 ThumbnailUrl） -->
+        <div class="col-12 col-lg-9">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">訓練影片</h3>
+            </div>
+
+            @if (Model.Videos?.Any() == true)
+            {
+                <div class="row row-cols-1 row-cols-md-3 g-3">
+                    @foreach (var v in Model.Videos)
+                    {
+                        <div class="col">
+                            <div class="card h-100 shadow-sm">
+                                @if (!string.IsNullOrWhiteSpace(v.ThumbnailUrl))
+                                {
+                                    <div class="card-img-top rounded-top" style="height:160px;background:#f2f3f5 url('@v.ThumbnailUrl') center/cover no-repeat;"></div>
+                                }
+                                else
+                                {
+                                    <div class="card-img-top rounded-top" style="height:160px;background:#f2f3f5;"></div>
+                                }
+
+                                <div class="card-body">
+                                    <h5 class="card-title text-truncate" title="@v.Title">@v.Title</h5>
+                                    <div class="text-muted small mb-2">
+                                        時長：@Minutes(v.DurationSec)
+                                        @if (!string.IsNullOrWhiteSpace(v.BodyPart))
+                                        {
+                                            <text>　部位：@v.BodyPart</text>
+                                        }
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <a asp-action="Details" asp-route-id="@v.VideoId" class="btn btn-sm btn-outline-secondary">檢視</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="text-muted">查無資料。</div>
+            }
+        </div>
     </div>
-}
+</div>
 
-@section Scripts {
-    <script>
-        (function () {
-            // 初始化下拉選已選標籤（避免 Razor option selected 判斷觸發 TagHelper 限制）
-            var tagSelect = document.getElementById('tagSelect');
-            var selectedTag = '@(selectedTagId?.ToString() ?? "")';
-            if (selectedTag) tagSelect.value = selectedTag;
-
-            // 清空條件
-            document.getElementById('clearBtn')?.addEventListener('click', function () {
-                document.getElementById('keywordInput').value = '';
-                tagSelect.value = '';
-                document.getElementById('filterForm').submit();
-            });
-        })();
-    </script>
-}

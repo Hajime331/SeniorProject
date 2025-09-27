@@ -1,61 +1,109 @@
-﻿@model List<Meow.Shared.Dtos.Videos.TrainingVideoListItemDto>
+﻿@model Meow.Web.ViewModels.TrainingVideos.TrainingVideoIndexVm
 @{
-    ViewData["Title"] = "Training Videos";
+    ViewData["Title"] = "訓練影片（後台）";
+    string Minutes(int? sec) => sec.HasValue ? $"{Math.Round(sec.Value / 60.0)} 分" : "—";
+    var selectedTagId = Model.SelectedTagIds?.FirstOrDefault();
 }
-<h2 class="mb-3">Training Videos</h2>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <form class="d-flex gap-2" method="get">
-        <input class="form-control" type="text" name="keyword" placeholder="關鍵字 (Title)" value="@Context.Request.Query["keyword"]" />
-        <select class="form-select" name="status">
-            <option value="">全部狀態</option>
-            <option value="Draft" selected="@(Context.Request.Query["status"] == "Draft")">Draft</option>
-            <option value="Published" selected="@(Context.Request.Query["status"] == "Published")">Published</option>
-            <option value="Archived" selected="@(Context.Request.Query["status"] == "Archived")">Archived</option>
-        </select>
-        <button class="btn btn-primary" type="submit">查詢</button>
-    </form>
-    <a class="btn btn-success" asp-area="Admin" asp-controller="TrainingVideos" asp-action="Create">＋ 新增影片</a>
+<div class="container my-4 mb-5">
+    <div class="row g-4">
+
+        <!-- 左：篩選 -->
+        <div class="col-12 col-lg-3">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white"><strong>搜尋與條件</strong></div>
+                <div class="card-body">
+                    <form method="get">
+                        <div class="mb-3">
+                            <label class="form-label">關鍵字</label>
+                            <input name="keyword" class="form-control" value="@Model.Keyword" placeholder="影片名稱" />
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">狀態</label>
+                            <select name="status" class="form-select">
+                                <option value="" selected="@(string.IsNullOrWhiteSpace(Model.Status))">全部</option>
+                                <option value="Published" selected="@(Model.Status == "Published")">Published</option>
+                                <option value="Draft" selected="@(Model.Status == "Draft")">Draft</option>
+                                <option value="Archived" selected="@(Model.Status == "Archived")">Archived</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">標籤</label>
+                            <select name="tagId" class="form-select">
+                                <option value="">全部</option>
+                                @foreach (var t in Model.AllTags)
+                                {
+                                    var sel = selectedTagId.HasValue && selectedTagId.Value == t.TagId ? "selected" : null;
+                                    <option value="@t.TagId" selected="@sel">@t.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">套用</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右：清單 -->
+        <div class="col-12 col-lg-9">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">訓練影片</h3>
+                <a asp-action="Create" class="btn btn-primary">新增影片</a>
+            </div>
+
+            @if (Model.Videos?.Any() == true)
+            {
+                <div class="row row-cols-1 row-cols-md-3 g-3">
+                    @foreach (var v in Model.Videos)
+                    {
+                        <div class="col">
+                            <div class="card h-100 shadow-sm">
+                                @if (!string.IsNullOrWhiteSpace(v.ThumbnailUrl))
+                                {
+                                    <div class="card-img-top rounded-top" style="height:160px;background:#f2f3f5 url('@v.ThumbnailUrl') center/cover no-repeat;"></div>
+                                }
+                                else
+                                {
+                                    <div class="card-img-top rounded-top" style="height:160px;background:#f2f3f5;"></div>
+                                }
+
+                                <div class="card-body">
+                                    <h5 class="card-title text-truncate" title="@v.Title">@v.Title</h5>
+                                    <div class="text-muted small mb-2">
+                                        時長：@Minutes(v.DurationSec)
+                                        @if (!string.IsNullOrWhiteSpace(v.BodyPart))
+                                        {
+                                            <text>　部位：@v.BodyPart</text>
+                                        }
+                                    </div>
+
+                                    <div class="d-flex gap-2">
+                                        <a asp-action="Edit" asp-route-id="@v.VideoId" class="btn btn-sm btn-outline-primary">編輯</a>
+                                        <a asp-action="Details" asp-route-id="@v.VideoId" class="btn btn-sm btn-outline-secondary">檢視</a>
+
+                                        <!-- 刪除：安全 POST -->
+                                        <form asp-action="Delete" asp-route-id="@v.VideoId" method="post" class="d-inline"
+                                              onsubmit="return confirm('確定要刪除「@v.Title」嗎？此動作無法復原。');">
+                                            @Html.AntiForgeryToken()
+                                            <button type="submit" class="btn btn-sm btn-outline-danger">刪除</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+            else
+            {
+                <div class="text-muted">查無資料。</div>
+            }
+        </div>
+    </div>
 </div>
 
-@if (Model is null || Model.Count == 0)
-{
-    <div class="alert alert-info">目前沒有資料。</div>
-}
-else
-{
-    <table class="table table-hover align-middle">
-        <thead>
-            <tr>
-                <th>標題</th>
-                <th>部位</th>
-                <th>時長(秒)</th>
-                <th>狀態</th>
-                <th>建立時間</th>
-                <th>操作</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var v in Model)
-            {
-                <tr>
-                    <td>@v.Title</td>
-                    <td>@v.BodyPart</td>
-                    <td>@v.DurationSec</td>
-                    <td>@v.Status</td>
-                    <td>@(v.CreatedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm"))</td>
-                    <td class="d-flex gap-2">
-                        <a class="btn btn-sm btn-outline-primary"
-                           asp-area="Admin" asp-controller="TrainingVideos" asp-action="Edit" asp-route-id="@v.VideoId">編輯</a>
-
-                        <form asp-area="Admin" asp-controller="TrainingVideos" asp-action="Delete" method="post"
-                              onsubmit="return confirm('刪除後無法復原，確定刪除？');">
-                            <input type="hidden" name="id" value="@v.VideoId" />
-                            <button class="btn btn-sm btn-outline-danger" type="submit">刪除</button>
-                        </form>
-                    </td>
-                </tr>
-            }
-        </tbody>
-    </table>
-}

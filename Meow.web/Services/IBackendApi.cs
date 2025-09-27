@@ -178,6 +178,7 @@ namespace Meow.Web.Services
 
         Task<TrainingSetDetailDto> UpdateTrainingSetAsync(TrainingSetUpdateDto dto);
 
+        Task<string?> UploadTrainingVideoThumbnailAsync(Guid videoId, IFormFile file);
 
     }
 }

@@ -10,6 +10,7 @@ namespace Meow.Shared.Dtos.Videos
         string Url,
         int DurationSec,
         string Status,
-        List<Guid> TagIds
+        List<Guid> TagIds,
+        string? ThumbnailUrl
     );
 }

@@ -17,32 +17,26 @@ public class TrainingVideosController : Controller
     // 首頁列表（前台可看）：預設只顯示 Published
     [AllowAnonymous]
     [HttpGet]
-    public async Task<IActionResult> Index(string? keyword, string? status, List<Guid>? tagIds)
+    public async Task<IActionResult> Index(string? keyword, Guid? tagId)
     {
-        // 預設狀態 Published；若你想固定只顯示 Published，可直接寫死 "Published"
-        var targetStatus = string.IsNullOrWhiteSpace(status) ? "Published" : status.Trim();
-
-        // 讀取所有可用標籤（做篩選 UI）
         var tags = await _api.GetTagsAsync();
 
-        // 第三個參數避免多載模糊：有 tagIds 時轉 CSV；沒有就 (string?)null
-        string? tagIdsCsv = (tagIds != null && tagIds.Any())
-            ? string.Join(",", tagIds)
-            : (string?)null;
+        string? tagIdsCsv = tagId.HasValue ? tagId.Value.ToString() : null;
 
+        // 前台固定顯示 Published
         var videos = await _api.GetTrainingVideosAsync(
             string.IsNullOrWhiteSpace(keyword) ? null : keyword.Trim(),
-            targetStatus,
+            "Published",
             tagIdsCsv
         );
 
         var vm = new TrainingVideoIndexVm
         {
             Keyword = keyword,
-            Status = targetStatus,
-            SelectedTagIds = tagIds ?? new List<Guid>(),
+            Status = "Published",
+            SelectedTagIds = tagId.HasValue ? new List<Guid> { tagId.Value } : new List<Guid>(),
             AllTags = tags.ToList(),
-            Videos = videos // IEnumerable<TrainingVideoListItemDto>
+            Videos = videos
         };
 
         return View(vm);
@@ -53,18 +47,9 @@ public class TrainingVideosController : Controller
     [HttpGet]
     public async Task<IActionResult> Details(Guid id)
     {
-        if (id == Guid.Empty) return NotFound();
-
-        var video = await _api.GetTrainingVideoAsync(id);
-        if (video == null) return NotFound();
-
-        var tags = await _api.GetTagsAsync();
-        var vm = new TrainingVideoDetailVm
-        {
-            Video = video,
-            AllTags = tags.ToList()
-        };
-        return View(vm);
+        var dto = await _api.GetTrainingVideoAsync(id);
+        if (dto == null) return NotFound();
+        return View(dto); // View 直接吃 TrainingVideoDetailDto
     }
 
     // 後續若有需要登入的操作（例如更新狀態），保留 [Authorize]

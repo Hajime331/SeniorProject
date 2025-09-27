@@ -1,55 +1,99 @@
 ﻿@model Meow.Web.ViewModels.TrainingSets.TrainingSetIndexVm
-
 @{
-    ViewData["Title"] = "課表列表";
+    ViewData["Title"] = "課表管理";
     string Minutes(int? sec) => sec.HasValue ? $"{Math.Round(sec.Value / 60.0)} 分" : "—";
 }
 
-<div class="container my-4">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3 class="mb-0">@Model.Sets.Count 個課表</h3>
-        <a asp-action="Create" class="btn btn-primary">新增課表</a>
-    </div>
+<div class="container my-4 mb-5">
+    <div class="row g-4">
 
-    <div class="row row-cols-1 row-cols-md-3 g-3">
-        @foreach (var set in Model.Sets)
-        {
-            <div class="col">
-                <div class="card h-100 shadow-sm">
-                    @if (!string.IsNullOrWhiteSpace(set.CoverUrl))
-                    {
-                        <div style="height:180px;background:#f2f3f5 url('@set.CoverUrl') center/cover no-repeat;"></div>
-                    }
-                    else
-                    {
-                        <div style="height:180px;background:#f2f3f5;"
-                             class="d-flex align-items-center justify-content-center text-muted">
-                            無封面
+        <!-- 左：搜尋與條件（單選 Tag） -->
+        <div class="col-12 col-lg-3">
+            <div class="card shadow-sm">
+                <div class="card-header bg-white"><strong>搜尋與條件</strong></div>
+                <div class="card-body">
+                    <form method="get">
+                        <div class="mb-3">
+                            <label class="form-label">關鍵字</label>
+                            <input name="keyword" class="form-control" value="@Model.Keyword" placeholder="課表名稱" />
                         </div>
-                    }
 
-                    <div class="card-body">
-                        <h5 class="card-title">@set.Name</h5>
-                        <div class="text-muted small mb-2">
-                            難度：@(string.IsNullOrWhiteSpace(set.Difficulty) ? "—" : set.Difficulty)　
-                            時間：@Minutes(set.EstimatedDurationSec)
+                        <div class="mb-3">
+                            <label class="form-label">狀態</label>
+                            <select name="status" class="form-select">
+                                <option value="Active" selected="@(Model.Status == "Active")">Active</option>
+                                <option value="Archived" selected="@(Model.Status == "Archived")">Archived</option>
+                            </select>
                         </div>
-                        <div class="d-flex gap-2">
-                            <a asp-action="Edit" asp-route-id="@set.SetId" class="btn btn-sm btn-outline-primary">編輯</a>
-                            <a asp-action="Detail" asp-route-id="@set.SetId" class="btn btn-sm btn-outline-secondary">檢視</a>
-                            <form asp-action="Delete" asp-route-id="@set.SetId" method="post" class="d-inline"
-                                  onsubmit="return confirm('確定要刪除「@set.Name」嗎？此動作無法復原。');">
-                                @Html.AntiForgeryToken()
-                                <button type="submit" class="btn btn-sm btn-outline-danger">刪除</button>
-                            </form>
+
+                        <div class="mb-3">
+                            <label class="form-label">難度</label>
+                            <select name="difficulty" class="form-select">
+                                <option value="">全部</option>
+                                @foreach (var d in (Model.AllDifficulties ?? new List<string> { "初階", "中階", "高階" }))
+                                {
+                                    <option value="@d" selected="@(Model.Difficulty == d)">@d</option>
+                                }
+                            </select>
                         </div>
-                    </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">標籤</label>
+                            <select name="tagId" class="form-select">
+                                <option value="">全部</option>
+                                @foreach (var t in Model.AllTags)
+                                {
+                                    <option value="@t.TagId" selected="@(Model.TagId.HasValue && Model.TagId == t.TagId)">@t.Name</option>
+                                }
+                            </select>
+                        </div>
+
+                        <div class="d-grid">
+                            <button type="submit" class="btn btn-primary">套用</button>
+                        </div>
+                    </form>
                 </div>
             </div>
-        }
+        </div>
+
+        <!-- 右：卡片清單（封面圖） -->
+        <div class="col-12 col-lg-9">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h3 class="mb-0">@Model.Sets.Count 個課表</h3>
+                <a asp-action="Create" class="btn btn-primary">新增課表</a>
+            </div>
+
+            <div class="row row-cols-1 row-cols-md-3 g-3">
+                @foreach (var set in Model.Sets)
+                {
+                    <div class="col">
+                        <div class="card h-100 shadow-sm">
+                            @if (!string.IsNullOrWhiteSpace(set.CoverUrl))
+                            {
+                                <div class="card-img-top rounded-top" style="height:180px;background:#f2f3f5 url('@set.CoverUrl') center/cover no-repeat;"></div>
+                            }
+                            else
+                            {
+                                <div class="card-img-top rounded-top" style="height:180px;background:#f2f3f5;"></div>
+                            }
+
+                            <div class="card-body">
+                                <h5 class="card-title">@set.Name</h5>
+                                <div class="text-muted small mb-2">
+                                    難度：@(string.IsNullOrWhiteSpace(set.Difficulty) ? "—" : set.Difficulty)　
+                                    時間：@Minutes(set.EstimatedDurationSec)
+                                </div>
+                                <div class="d-flex gap-2">
+                                    <a asp-action="Edit" asp-route-id="@set.SetId" class="btn btn-sm btn-outline-primary">編輯</a>
+                                    <a asp-action="Details" asp-route-id="@set.SetId" class="btn btn-sm btn-outline-secondary">檢視</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+
     </div>
-</div>
-<div class="mt-3">
-    <a asp-action="Index" class="btn btn-secondary">回列表</a>
 </div>
 

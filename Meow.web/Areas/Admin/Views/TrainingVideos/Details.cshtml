@@ -1,6 +1,6 @@
 ﻿@model Meow.Shared.Dtos.Videos.TrainingVideoDetailDto
 @{
-    ViewData["Title"] = "影片內容";
+    ViewData["Title"] = "影片內容（後台）";
     string Minutes(int? sec) => sec.HasValue ? $"{Math.Round(sec.Value / 60.0)} 分" : "—";
 }
 
@@ -26,7 +26,10 @@
                 <dd class="col-sm-9">@Minutes(Model.DurationSec)</dd>
             </dl>
 
-            <a asp-action="Index" class="btn btn-secondary">回列表</a>
+            <div class="d-flex gap-2">
+                <a asp-action="Index" class="btn btn-secondary">回列表</a>
+                <a asp-action="Edit" asp-route-id="@Model.VideoId" class="btn btn-primary">編輯</a>
+            </div>
         </div>
     </div>
 </div>

@@ -49,7 +49,8 @@ public class TrainingVideosController : ControllerBase
                 Status = v.Status,
                 CreatedAt = v.CreatedAt,
                 UpdatedAt = v.UpdatedAt,
-                TagIds = _db.VideoTagMaps.Where(m => m.VideoID == v.VideoID).Select(m => m.TagID).ToList()
+                TagIds = _db.VideoTagMaps.Where(m => m.VideoID == v.VideoID).Select(m => m.TagID).ToList(),
+                ThumbnailUrl = v.ThumbnailUrl
             })
             .ToListAsync();
 
@@ -203,6 +204,7 @@ public class TrainingVideosController : ControllerBase
         v.Url = dto.Url;
         v.DurationSec = dto.DurationSec;
         v.Status = dto.Status;
+        v.ThumbnailUrl = dto.ThumbnailUrl;
         v.UpdatedAt = DateTime.UtcNow;
 
         // 更新標籤：先清除再新增
