@@ -44,8 +44,8 @@ namespace Meow.Web.Areas.Admin.Controllers
         [HttpGet]
         public async Task<IActionResult> Create()
         {
-            ViewBag.AllTags = await _api.GetTagsAsync();
-            return View(new TrainingVideoEditViewModel());
+            ViewBag.AllTags = await _api.GetTagsAsync();      // ← 必填
+            return View(new TrainingVideoEditViewModel { TagIds = new List<Guid>() });
         }
 
         // POST: Admin/TrainingVideos/Create
@@ -53,7 +53,12 @@ namespace Meow.Web.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(TrainingVideoEditViewModel vm, IFormFile? ThumbnailFile)
         {
-            if (!ModelState.IsValid) { ViewBag.AllTags = await _api.GetTagsAsync(); return View(vm); }
+            if (!ModelState.IsValid)
+            {
+                ViewBag.AllTags = await _api.GetTagsAsync();  // ← 回傳 View 前要再塞
+                vm.TagIds ??= new List<Guid>();               // ← 防 null
+                return View(vm);
+            }
 
             var createDto = new TrainingVideoCreateDto(
                 vm.Title.Trim(),
@@ -65,7 +70,7 @@ namespace Meow.Web.Areas.Admin.Controllers
                 string.IsNullOrWhiteSpace(vm.ThumbnailUrl) ? null : vm.ThumbnailUrl.Trim()
             );
 
-            var createdVideo = await _api.CreateTrainingVideoAsync(createDto); 
+            var createdVideo = await _api.CreateTrainingVideoAsync(createDto);
             Guid newId = createdVideo.VideoId;
 
             if (ThumbnailFile != null && ThumbnailFile.Length > 0)
@@ -79,20 +84,22 @@ namespace Meow.Web.Areas.Admin.Controllers
 
 
         // GET: Admin/TrainingVideos/Edit/{id}
+        [HttpGet]
         public async Task<IActionResult> Edit(Guid id)
         {
             var dto = await _api.GetTrainingVideoAsync(id);
-            if (dto is null) return NotFound();
+            if (dto == null) return NotFound();
 
+            ViewBag.AllTags = await _api.GetTagsAsync();   // ← 必填
             var vm = new TrainingVideoEditViewModel
             {
                 VideoId = dto.VideoId,
-                Title = dto.Title,
-                BodyPart = dto.BodyPart,
-                Url = dto.Url,
+                Title = dto.Title ?? "",
+                BodyPart = dto.BodyPart ?? "",
+                Url = dto.Url ?? "",
                 DurationSec = dto.DurationSec,
-                Status = dto.Status,
-                TagIds = dto.TagIds?.ToList() ?? new List<Guid>(),
+                Status = dto.Status ?? "Draft",
+                TagIds = dto.TagIds?.ToList() ?? new List<Guid>(),  // ← 防 null
                 ThumbnailUrl = dto.ThumbnailUrl
             };
             return View(vm);
@@ -105,7 +112,8 @@ namespace Meow.Web.Areas.Admin.Controllers
         {
             if (!ModelState.IsValid)
             {
-                ViewBag.AllTags = await _api.GetTagsAsync();
+                ViewBag.AllTags = await _api.GetTagsAsync();  // ← 回傳 View 前要再塞
+                vm.TagIds ??= new List<Guid>();               // ← 防 null
                 return View(vm);
             }
 
@@ -123,18 +131,41 @@ namespace Meow.Web.Areas.Admin.Controllers
 
             await _api.UpdateTrainingVideoAsync(updateDto);
 
-            // 有上傳檔案 → 走上傳端點
+
+            // 若有檔案：上傳並嘗試寫回 DB 的 ThumbnailUrl
             if (ThumbnailFile != null && ThumbnailFile.Length > 0)
             {
                 var newUrl = await _api.UploadTrainingVideoThumbnailAsync(vm.VideoId, ThumbnailFile);
-                TempData["Ok"] = newUrl != null ? "封面已上傳並儲存。" : "封面上傳失敗。";
+
+                if (!string.IsNullOrWhiteSpace(newUrl))
+                {
+                    // 再用新的 URL 更新一次（確保 DB 有值）
+                    var updateThumbOnly = new TrainingVideoUpdateDto(
+                        vm.VideoId,
+                        vm.Title?.Trim() ?? "",
+                        string.IsNullOrWhiteSpace(vm.BodyPart) ? null : vm.BodyPart.Trim(),
+                        vm.Url?.Trim() ?? "",
+                        vm.DurationSec,
+                        vm.Status ?? "Draft",
+                        vm.TagIds ?? new List<Guid>(),
+                        newUrl // 寫回新的縮圖網址
+                    );
+                    await _api.UpdateTrainingVideoAsync(updateThumbOnly);
+
+                    TempData["Ok"] = "封面已上傳並更新。";
+                }
+                else
+                {
+                    TempData["Err"] = "封面上傳失敗。";
+                }
             }
             else
             {
                 TempData["Ok"] = "已儲存變更。";
             }
 
-            // 回 GET 保留預覽
+
+            // PRG：回到同頁保留預覽
             return RedirectToAction(nameof(Edit), new { id = vm.VideoId });
         }
 

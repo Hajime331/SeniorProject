@@ -51,57 +51,60 @@
 
         <!-- 右：清單 -->
         <div class="col-12 col-lg-9">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h3 class="mb-0">訓練影片</h3>
-                <a asp-action="Create" class="btn btn-primary">新增影片</a>
-            </div>
-
-            @if (Model.Videos?.Any() == true)
+            @if (Model.Videos == null || !Model.Videos.Any())
             {
-                <div class="row row-cols-1 row-cols-md-3 g-3">
-                    @foreach (var v in Model.Videos)
-                    {
-                        <div class="col">
-                            <div class="card h-100 shadow-sm">
-                                @if (!string.IsNullOrWhiteSpace(v.ThumbnailUrl))
-                                {
-                                    <div class="card-img-top rounded-top" style="height:160px;background:#f2f3f5 url('@v.ThumbnailUrl') center/cover no-repeat;"></div>
-                                }
-                                else
-                                {
-                                    <div class="card-img-top rounded-top" style="height:160px;background:#f2f3f5;"></div>
-                                }
-
-                                <div class="card-body">
-                                    <h5 class="card-title text-truncate" title="@v.Title">@v.Title</h5>
-                                    <div class="text-muted small mb-2">
-                                        時長：@Minutes(v.DurationSec)
-                                        @if (!string.IsNullOrWhiteSpace(v.BodyPart))
-                                        {
-                                            <text>　部位：@v.BodyPart</text>
-                                        }
-                                    </div>
-
-                                    <div class="d-flex gap-2">
-                                        <a asp-action="Edit" asp-route-id="@v.VideoId" class="btn btn-sm btn-outline-primary">編輯</a>
-                                        <a asp-action="Details" asp-route-id="@v.VideoId" class="btn btn-sm btn-outline-secondary">檢視</a>
-
-                                        <!-- 刪除：安全 POST -->
-                                        <form asp-action="Delete" asp-route-id="@v.VideoId" method="post" class="d-inline"
-                                              onsubmit="return confirm('確定要刪除「@v.Title」嗎？此動作無法復原。');">
-                                            @Html.AntiForgeryToken()
-                                            <button type="submit" class="btn btn-sm btn-outline-danger">刪除</button>
-                                        </form>
-                                    </div>
-                                </div>
-                            </div>
-                        </div>
-                    }
-                </div>
+                <div class="alert alert-warning">查無資料。</div>
             }
             else
             {
-                <div class="text-muted">查無資料。</div>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h4 class="text-muted">@Model.Videos.Count 部課表</h4>
+                    <a asp-action="Create" class="btn btn-primary">新增影片</a>
+                </div>
+
+                @if (Model.Videos?.Any() == true)
+                {
+                    <div class="row row-cols-1 row-cols-md-3 g-3">
+                        @foreach (var v in Model.Videos)
+                        {
+                            <div class="col">
+                                <div class="card h-100 shadow-sm">
+                                    @if (!string.IsNullOrWhiteSpace(v.ThumbnailUrl))
+                                    {
+                                        <div class="card-img-top rounded-top" style="height:160px;background:#f2f3f5 url('@v.ThumbnailUrl') center/cover no-repeat;"></div>
+                                    }
+                                    else
+                                    {
+                                        <div class="card-img-top rounded-top" style="height:160px;background:#f2f3f5;"></div>
+                                    }
+
+                                    <div class="card-body">
+                                        <h5 class="card-title text-truncate" title="@v.Title">@v.Title</h5>
+                                        <div class="text-muted small mb-2">
+                                            時長：@Minutes(v.DurationSec)
+                                            @if (!string.IsNullOrWhiteSpace(v.BodyPart))
+                                            {
+                                                <text>　部位：@v.BodyPart</text>
+                                            }
+                                        </div>
+
+                                        <div class="d-flex gap-2">
+                                            <a asp-action="Edit" asp-route-id="@v.VideoId" class="btn btn-sm btn-outline-primary">編輯</a>
+                                            <a asp-action="Details" asp-route-id="@v.VideoId" class="btn btn-sm btn-outline-secondary">檢視</a>
+
+                                            <!-- 刪除：安全 POST -->
+                                            <form asp-action="Delete" asp-route-id="@v.VideoId" method="post" class="d-inline"
+                                                  onsubmit="return confirm('確定要刪除「@v.Title」嗎？此動作無法復原。');">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="btn btn-sm btn-outline-danger">刪除</button>
+                                            </form>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                }
             }
         </div>
     </div>

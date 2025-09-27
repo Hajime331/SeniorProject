@@ -5,63 +5,56 @@
 <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>@ViewData["Title"] - Meow Admin</title>
-
-    <!-- 你原本的 CSS / 第三方樣式 放這裡 -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <title>@ViewData["Title"]</title>
+    <link rel="stylesheet" href="~/lib/bootstrap/dist/css/bootstrap.min.css" />
     <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <link rel="stylesheet" href="~/Meow.Web.styles.css" asp-append-version="true" />
 </head>
 <body>
-    <header>
-        <nav class="navbar navbar-expand-lg navbar-dark bg-dark mb-3">
-            <div class="container-fluid">
-                <a class="navbar-brand" asp-area="Admin" asp-controller="Home" asp-action="Index">後台</a>
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand navbar-dark bg-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" asp-area="Admin" asp-controller="Home" asp-action="Index">後台管理</a>
+            <ul class="navbar-nav text-light me-auto mb-2 mb-lg-0">
+                <li class="nav-item">
+                    <a class="nav-link" asp-area="Admin" asp-controller="Dashboard" asp-action="Index">儀表板</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" asp-area="Admin" asp-controller="TrainingSets" asp-action="Index">課表管理</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" asp-area="Admin" asp-controller="TrainingVideos" asp-action="Index">影片管理</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" asp-area="Admin" asp-controller="Tags" asp-action="Index">標籤管理</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" asp-area="Admin" asp-controller="Members" asp-action="Index">會員清單</a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">回前台</a>
+                </li>
+            </ul>
+        </div>
+    </nav>
 
-                <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#adminNav">
-                    <span class="navbar-toggler-icon"></span>
-                </button>
+    <!-- Main content -->
+    <div class="container my-4">
+        <main role="main" class="pb-3">
+            @RenderBody()
+        </main>
+    </div>
 
-                <div class="collapse navbar-collapse" id="adminNav">
-                    <ul class="navbar-nav flex-grow-1">
-
-                        <li class="nav-item dropdown">
-                            <a class="nav-link dropdown-toggle" role="button" data-bs-toggle="dropdown">內容管理</a>
-                            <ul class="dropdown-menu" aria-labelledby="navMember">
-                                <li><a class="dropdown-item" asp-area="Admin" asp-controller="TrainingSets" asp-action="Index">課表</a></li>
-                                <li><a class="dropdown-item" asp-area="Admin" asp-controller="TrainingVideos" asp-action="Index">影片</a></li>
-                                <li><a class="dropdown-item" asp-area="Admin" asp-controller="Tags" asp-action="Index">標籤</a></li>
-                            </ul>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="Admin" asp-controller="Members" asp-action="Index">會員清單</a>
-                        </li>
-                        <li class="nav-item">
-                            <a class="nav-link" asp-area="" asp-controller="Home" asp-action="Index">回前台</a>
-                        </li>
-
-                    </ul>
-
-                    <ul class="navbar-nav ms-auto">
-                        <li class="nav-item"><span class="navbar-text">Admin</span></li>
-                    </ul>
-                </div>
-            </div>
-        </nav>
-    </header>
-
-    <main class="container">
-        @RenderBody()
-    </main>
-
-    <footer class="border-top mt-4 py-3">
-        <div class="container text-muted">
-            <small>© @DateTime.Now.Year - Meow Admin</small>
+    <!-- Footer -->
+    <footer class="border-top footer text-muted bg-dark text-light mt-auto py-3">
+        <div class="container">
+            &copy; 2025 - Meow Admin
         </div>
     </footer>
 
-    <!-- 你原本的 JS 放這裡 -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-    @RenderSection("Scripts", required: false)
+    <script src="~/lib/jquery/dist/jquery.min.js"></script>
+    <script src="~/lib/bootstrap/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="~/js/site.js" asp-append-version="true"></script>
+    @await RenderSectionAsync("Scripts", required: false)
 </body>
 </html>

@@ -1,7 +1,7 @@
 ﻿@model TrainingVideoEditViewModel
 @{
     ViewData["Title"] = "編輯影片";
-    var tags = (IReadOnlyList<Meow.Shared.Dtos.Tags.TagDto>)ViewBag.AllTags;
+    var tags = ViewBag.AllTags as IReadOnlyList<Meow.Shared.Dtos.Tags.TagDto>;
     var selected = Model?.TagIds ?? new List<Guid>();
 }
 
@@ -57,23 +57,31 @@
                 <div class="mb-3">
                     <label class="form-label fw-bold">標籤</label>
                     <div class="row row-cols-2 g-2">
-                        @foreach (var t in tags)
+                        @if (tags != null && tags.Any())
                         {
-                            var isChecked = selected.Contains(t.TagId);
-                            <div class="col">
-                                <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="TagIds" value="@t.TagId" id="tag_@t.TagId"
-                                           @(isChecked ? "checked" : null) />
-                                    <label class="form-check-label" for="tag_@t.TagId">@t.Name</label>
+                            foreach (var t in tags)
+                            {
+                                var isChecked = selected.Contains(t.TagId);
+                                <div class="col">
+                                    <div class="form-check">
+                                        <input class="form-check-input" type="checkbox" name="TagIds" value="@t.TagId" id="tag_@t.TagId" @(isChecked ? "checked" : null) />
+                                        <label class="form-check-label" for="tag_@t.TagId">@t.Name</label>
+                                    </div>
                                 </div>
-                            </div>
+                            }
+                        }
+                        else
+                        {
+                            <div class="text-muted">尚無標籤</div>
                         }
                     </div>
                 </div>
 
-                <div class="d-grid">
+                <div class="d-flex justify-content-between mt-4">
+                    <a asp-action="Index" class="btn btn-outline-secondary">回列表</a>
                     <button type="submit" class="btn btn-primary">儲存</button>
                 </div>
+
             </div>
 
             <div class="col-lg-4">
@@ -86,11 +94,6 @@
                              class="rounded border" style="max-width:220px;@(string.IsNullOrWhiteSpace(Model?.ThumbnailUrl) ? "display:none" : "")" />
                     </div>
                     <div class="form-text">選擇檔案後會即時預覽，按「儲存」才會上傳。</div>
-                </div>
-
-                <div class="mb-3">
-                    <label asp-for="ThumbnailUrl" class="form-label fw-bold">封面圖（URL）</label>
-                    <input asp-for="ThumbnailUrl" class="form-control" />
                 </div>
             </div>
         </div>

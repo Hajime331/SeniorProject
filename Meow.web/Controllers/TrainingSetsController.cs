@@ -11,23 +11,25 @@ public class TrainingSetsController : Controller
     public TrainingSetsController(IBackendApi api) => _api = api;
 
     // GET /TrainingSets
+    [HttpGet]
     public async Task<IActionResult> Index(string? keyword, string? difficulty, Guid? tagId)
     {
         var sets = await _api.GetTrainingSetsAsync(keyword, "Active", difficulty, tagId);
-        var tags = await _api.GetTagsAsync();
+        var allTags = await _api.GetTagsAsync();
 
         var vm = new TrainingSetIndexVm
         {
-            Keyword = keyword,
-            Difficulty = difficulty,
+            Keyword = keyword ?? "",
+            Status = "Active",
+            Difficulty = difficulty,               // ← 帶進 VM
             TagId = tagId,
-            AllTags = tags,
-            // AllDifficulties 如有需要也可塞（固定 3~4 種字串）
-            Sets = sets // ← 關鍵：List 包進去
+            AllTags = allTags.ToList(),
+            AllDifficulties = new List<string> { "初階", "中階", "高階" }, // 若你已有來源可替換
+            Sets = sets.ToList()
         };
-
         return View(vm);
     }
+
 
 
 

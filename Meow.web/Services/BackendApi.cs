@@ -449,21 +449,34 @@ namespace Meow.Web.Services
             var sc = new StreamContent(fs);
             sc.Headers.ContentType =
                 new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType ?? "application/octet-stream");
-            form.Add(sc, "file", file.FileName);
+            form.Add(sc, "file", file.FileName); // 表單欄位名 "file"：請確保後端也是讀這個 key
 
-            var resp = await _http.PostAsync($"api/TrainingVideos/{videoId}/thumbnail", form);
+            using var resp = await _http.PostAsync($"api/TrainingVideos/{videoId}/thumbnail", form);
+
+            // 失敗時回傳 null，讓畫面顯示「上傳失敗」
             if (!resp.IsSuccessStatusCode) return null;
 
+            // 嘗試各種回傳格式
             try
             {
-                var obj = await resp.Content.ReadFromJsonAsync<Dictionary<string, string>>();
-                return obj != null && obj.TryGetValue("url", out var url) ? url : await resp.Content.ReadAsStringAsync();
+                var json = await resp.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+                if (json != null)
+                {
+                    if (json.TryGetValue("url", out var u) && !string.IsNullOrWhiteSpace(u)) return u;
+                    if (json.TryGetValue("coverUrl", out var cu) && !string.IsNullOrWhiteSpace(cu)) return cu;
+                    if (json.TryGetValue("thumbnailUrl", out var tu) && !string.IsNullOrWhiteSpace(tu)) return tu;
+                }
+                // 不是 JSON，就當成純文字 URL
+                var text = await resp.Content.ReadAsStringAsync();
+                return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
             }
             catch
             {
-                return await resp.Content.ReadAsStringAsync();
+                var text = await resp.Content.ReadAsStringAsync();
+                return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
             }
         }
+
 
 
         public Task<TrainingSetDetailDto?> GetTrainingSetAsync(Guid id)

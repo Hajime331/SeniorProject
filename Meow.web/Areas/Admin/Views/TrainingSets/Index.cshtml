@@ -58,40 +58,47 @@
 
         <!-- 右：卡片清單（封面圖） -->
         <div class="col-12 col-lg-9">
-            <div class="d-flex justify-content-between align-items-center mb-3">
-                <h3 class="mb-0">@Model.Sets.Count 個課表</h3>
-                <a asp-action="Create" class="btn btn-primary">新增課表</a>
-            </div>
+            @if (Model.Sets == null || !Model.Sets.Any())
+            {
+                <div class="alert alert-warning">查無資料。</div>
+            }
+            else
+            {
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h4 class="text-muted">@Model.Sets.Count 部課表</h4>
+                    <a asp-action="Create" class="btn btn-primary">新增課表</a>
+                </div>
 
-            <div class="row row-cols-1 row-cols-md-3 g-3">
-                @foreach (var set in Model.Sets)
-                {
-                    <div class="col">
-                        <div class="card h-100 shadow-sm">
-                            @if (!string.IsNullOrWhiteSpace(set.CoverUrl))
-                            {
-                                <div class="card-img-top rounded-top" style="height:180px;background:#f2f3f5 url('@set.CoverUrl') center/cover no-repeat;"></div>
-                            }
-                            else
-                            {
-                                <div class="card-img-top rounded-top" style="height:180px;background:#f2f3f5;"></div>
-                            }
+                <div class="row row-cols-1 row-cols-md-3 g-3">
+                    @foreach (var set in Model.Sets)
+                    {
+                        <div class="col">
+                            <div class="card h-100 shadow-sm">
+                                @if (!string.IsNullOrWhiteSpace(set.CoverUrl))
+                                {
+                                    <div class="card-img-top rounded-top" style="height:180px;background:#f2f3f5 url('@set.CoverUrl') center/cover no-repeat;"></div>
+                                }
+                                else
+                                {
+                                    <div class="card-img-top rounded-top" style="height:180px;background:#f2f3f5;"></div>
+                                }
 
-                            <div class="card-body">
-                                <h5 class="card-title">@set.Name</h5>
-                                <div class="text-muted small mb-2">
-                                    難度：@(string.IsNullOrWhiteSpace(set.Difficulty) ? "—" : set.Difficulty)　
-                                    時間：@Minutes(set.EstimatedDurationSec)
-                                </div>
-                                <div class="d-flex gap-2">
-                                    <a asp-action="Edit" asp-route-id="@set.SetId" class="btn btn-sm btn-outline-primary">編輯</a>
-                                    <a asp-action="Details" asp-route-id="@set.SetId" class="btn btn-sm btn-outline-secondary">檢視</a>
+                                <div class="card-body">
+                                    <h5 class="card-title">@set.Name</h5>
+                                    <div class="text-muted small mb-2">
+                                        難度：@(string.IsNullOrWhiteSpace(set.Difficulty) ? "—" : set.Difficulty)　
+                                        時間：@Minutes(set.EstimatedDurationSec)
+                                    </div>
+                                    <div class="d-flex gap-2">
+                                        <a asp-action="Edit" asp-route-id="@set.SetId" class="btn btn-sm btn-outline-primary">編輯</a>
+                                        <a asp-action="Details" asp-route-id="@set.SetId" class="btn btn-sm btn-outline-secondary">檢視</a>
+                                    </div>
                                 </div>
                             </div>
                         </div>
-                    </div>
-                }
-            </div>
+                    }
+                </div>
+            }
         </div>
 
     </div>

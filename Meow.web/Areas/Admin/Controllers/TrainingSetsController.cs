@@ -65,6 +65,7 @@ namespace Meow.Web.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(TrainingSetEditViewModel vm)
         {
+            // 基本驗證
             if (string.IsNullOrWhiteSpace(vm.Name))
                 ModelState.AddModelError(nameof(vm.Name), "請輸入課表名稱。");
             if (vm.Items == null || vm.Items.Count == 0)
@@ -72,11 +73,14 @@ namespace Meow.Web.Areas.Admin.Controllers
 
             if (!ModelState.IsValid)
             {
+                // 回傳 View 前，把下拉/多選資料補齊
                 ViewBag.AllTags = await _api.GetTagsAsync();
+                // 若 View 會用到影片清單（自動完成等），也可提前載入
+                ViewBag.AllVideos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
                 return View(vm);
             }
 
-            // 1) Items → Create DTO（用「建構子」！）
+            // 建立 Items DTO
             var itemDtos = (vm.Items ?? new List<TrainingSetItemEditViewModel>())
                 .Select(i => new TrainingSetItemCreateDto(
                     i.VideoId,
@@ -87,7 +91,7 @@ namespace Meow.Web.Areas.Admin.Controllers
                 ))
                 .ToList();
 
-            // 2) Create DTO（CoverUrl 先 null；之後用上傳端點）
+            // 建立 Create DTO（CoverUrl 先 null；上傳走獨立端點）
             var createDto = new TrainingSetCreateDto(
                 vm.Name!.Trim(),
                 vm.BodyPart ?? "全身",
@@ -101,18 +105,43 @@ namespace Meow.Web.Areas.Admin.Controllers
 
             try
             {
+                // 建立成功會回傳 detail（內有 SetID）
                 var created = await _api.CreateTrainingSetAsync(createDto);
 
+                // 若有上傳封面 → 呼叫上傳端點
                 if (vm.CoverFile is not null && vm.CoverFile.Length > 0)
-                    await _api.UploadTrainingSetCoverAsync(created.SetID, vm.CoverFile); // :contentReference[oaicite:5]{index=5}
+                {
+                    try
+                    {
+                        await _api.UploadTrainingSetCoverAsync(created.SetID, vm.CoverFile);
+                        TempData["Ok"] = "已建立課表並上傳封面。";
+                    }
+                    catch (Exception ex)
+                    {
+                        TempData["Err"] = "課表已建立，但封面上傳失敗：" + ex.Message;
+                    }
+                }
+                else
+                {
+                    TempData["Ok"] = "已建立課表。";
+                }
 
-                TempData["Ok"] = "已建立課表。";
-                return RedirectToAction(nameof(Index));
+                // ✅ 依你的需求：成功後跳轉到編輯頁
+                return RedirectToAction(nameof(Edit), new { id = created.SetID });
             }
             catch (ApplicationException ex)
             {
+                // API 回來的可讀錯誤
                 ModelState.AddModelError("", ex.Message);
                 ViewBag.AllTags = await _api.GetTagsAsync();
+                ViewBag.AllVideos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
+                return View(vm);
+            }
+            catch (Exception ex)
+            {
+                ModelState.AddModelError("", "建立失敗：" + ex.Message);
+                ViewBag.AllTags = await _api.GetTagsAsync();
+                ViewBag.AllVideos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
                 return View(vm);
             }
         }
@@ -225,8 +254,8 @@ namespace Meow.Web.Areas.Admin.Controllers
             }
         }
 
-        // GET: Admin/TrainingSets/Detail/{id}
-        public async Task<IActionResult> Detail(Guid id)
+        // GET: Admin/TrainingSets/Details/{id}
+        public async Task<IActionResult> Details(Guid id)
         {
             if (id == Guid.Empty)
                 return NotFound();

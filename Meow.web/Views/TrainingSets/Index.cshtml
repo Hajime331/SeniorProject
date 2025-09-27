@@ -1,18 +1,40 @@
 ﻿@model Meow.Web.ViewModels.TrainingSets.TrainingSetIndexVm
 @{
     ViewData["Title"] = "課表列表";
-    string minutesText(int? sec) => sec.HasValue ? $"{Math.Round(sec.Value/60.0)} 分" : "—";
+    string minutesText(int? sec) => sec.HasValue ? $"{Math.Round(sec.Value / 60.0)} 分" : "—";
 }
 
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet" />
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet" />
 
 <style>
-    body { background:#f6f7fb; }
-    .card-soft { border:0; border-radius:20px; box-shadow:0 8px 20px rgba(0,0,0,.06); }
-    .chip { display:inline-block; padding:.25rem .6rem; border-radius:999px; font-size:.8rem; line-height:1; }
-    .chip-gray{ background:#eef1f4; color:#445; }
-    .chip-green{ background:#eaf7ee; color:#2f7a3f; }
+    body {
+        background: #f6f7fb;
+    }
+
+    .card-soft {
+        border: 0;
+        border-radius: 20px;
+        box-shadow: 0 8px 20px rgba(0,0,0,.06);
+    }
+
+    .chip {
+        display: inline-block;
+        padding: .25rem .6rem;
+        border-radius: 999px;
+        font-size: .8rem;
+        line-height: 1;
+    }
+
+    .chip-gray {
+        background: #eef1f4;
+        color: #445;
+    }
+
+    .chip-green {
+        background: #eaf7ee;
+        color: #2f7a3f;
+    }
 </style>
 
 <div class="container my-4">
@@ -20,34 +42,28 @@
 
         <!-- 左側篩選區 -->
         <aside class="col-12 col-lg-3">
-            <div class="card card-soft p-3">
+            <div class="card shadow-sm">
                 <form method="get">
                     <div class="mb-3">
-                        <input name="keyword" value="@Model.Keyword" class="form-control form-control-lg" placeholder="搜尋課表…" />
+                        <input name="keyword" value="@Model.Keyword" class="form-control form-control-lg" placeholder="關鍵字搜尋…" />
                     </div>
-
                     <div class="mb-3">
-                        <div class="fw-bold mb-2">難度</div>
-                        <div class="vstack gap-1">
-                            @foreach (var diff in Model.AllDifficulties)
-                            {
-                                var isChecked = string.Equals(Model.Difficulty, diff, StringComparison.OrdinalIgnoreCase);
-                                <div class="form-check">
-                                    <input class="form-check-input" type="radio" name="difficulty" id="diff_@diff" value="@diff" checked="@(isChecked)" />
-                                    <label class="form-check-label" for="diff_@diff">@diff</label>
-                                </div>
-                            }
-                            <div class="form-check">
-                                <input class="form-check-input" type="radio" name="difficulty" id="diff_all" value="" checked="@(string.IsNullOrEmpty(Model.Difficulty))" />
-                                <label class="form-check-label" for="diff_all">全部</label>
-                            </div>
+                        <div class="mb-3">
+                            <label class="form-label">難度</label>
+                            <select name="difficulty" class="form-select">
+                                <option value="">全部</option>
+                                @foreach (var d in (Model.AllDifficulties ?? new List<string> { "初階", "中階", "高階" }))
+                                {
+                                    <option value="@d" selected="@(Model.Difficulty == d)">@d</option>
+                                }
+                            </select>
                         </div>
                     </div>
 
                     <div class="mb-3">
                         <div class="fw-bold mb-2">標籤</div>
                         <select class="form-select" name="tagId">
-                            <option value="">— 全部 —</option>
+                            <option value="">全部</option>
                             @foreach (var tag in Model.AllTags)
                             {
                                 var sel = Model.TagId.HasValue && Model.TagId.Value == tag.TagId ? "selected" : null;
@@ -56,8 +72,8 @@
                         </select>
                     </div>
 
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="bi bi-funnel me-1"></i> 套用篩選
+                    <button type="submit" class="btn btn-primary">
+                        套用
                     </button>
                 </form>
             </div>
@@ -65,38 +81,48 @@
 
         <!-- 右側清單 -->
         <div class="col-12 col-lg-9">
-            <div class="row row-cols-1 row-cols-md-3 g-3">
-                @foreach (var set in Model.Sets)
-                {
-                    <div class="col">
-                        <div class="card h-100 shadow-sm">
-                            @if (!string.IsNullOrWhiteSpace(set.CoverUrl))
-                            {
-                                <div style="height:180px;background:#f2f3f5 url('@set.CoverUrl') center/cover no-repeat;"></div>
-                            }
-                            else
-                            {
-                                <div style="height:180px;background:#f2f3f5;"
-                                     class="d-flex align-items-center justify-content-center text-muted">
-                                    無封面
-                                </div>
-                            }
+            @if (Model.Sets == null || !Model.Sets.Any())
+            {
+                <div class="alert alert-warning">查無資料。</div>
+            }
+            else
+            {
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h4 class="text-muted">@Model.Sets.Count 部課表</h4>
+                </div>
+                <div class="row row-cols-1 row-cols-md-3 g-3">
+                    @foreach (var set in Model.Sets)
+                    {
+                        <div class="col">
+                            <div class="card h-100 shadow-sm">
+                                @if (!string.IsNullOrWhiteSpace(set.CoverUrl))
+                                {
+                                    <div style="height:180px;background:#f2f3f5 url('@set.CoverUrl') center/cover no-repeat;"></div>
+                                }
+                                else
+                                {
+                                    <div style="height:180px;background:#f2f3f5;"
+                                         class="d-flex align-items-center justify-content-center text-muted">
+                                        無封面
+                                    </div>
+                                }
 
-                            <div class="card-body">
-                                <h5 class="card-title">@set.Name</h5>
-                                <p class="text-muted small mb-2">
-                                    難度：@(string.IsNullOrWhiteSpace(set.Difficulty) ? "—" : set.Difficulty)
-                                    @if (set.EstimatedDurationSec.HasValue)
-                                    {
-                                        <text>　時間：@Math.Round(set.EstimatedDurationSec.Value / 60.0) 分</text>
-                                    }
-                                </p>
-                                <a asp-action="Details" asp-route-id="@set.SetId" class="btn btn-sm btn-outline-primary">查看</a>
+                                <div class="card-body">
+                                    <h5 class="card-title">@set.Name</h5>
+                                    <p class="text-muted small mb-2">
+                                        難度：@(string.IsNullOrWhiteSpace(set.Difficulty) ? "—" : set.Difficulty)
+                                        @if (set.EstimatedDurationSec.HasValue)
+                                        {
+                                            <text>　時間：@Math.Round(set.EstimatedDurationSec.Value / 60.0) 分</text>
+                                        }
+                                    </p>
+                                    <a asp-action="Details" asp-route-id="@set.SetId" class="btn btn-sm btn-outline-primary">查看</a>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                }
-            </div>
+                    }
+                </div>
+            }
         </div>
     </div>
 </div>
