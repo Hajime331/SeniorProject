@@ -4,6 +4,7 @@ using Meow.Shared.Dtos.Videos;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.IO;
 
 [ApiController]
 [Route("api/[controller]")]
@@ -49,8 +50,8 @@ public class TrainingVideosController : ControllerBase
                 Status = v.Status,
                 CreatedAt = v.CreatedAt,
                 UpdatedAt = v.UpdatedAt,
-                TagIds = _db.VideoTagMaps.Where(m => m.VideoID == v.VideoID).Select(m => m.TagID).ToList(),
-                ThumbnailUrl = v.ThumbnailUrl
+                ThumbnailUrl = v.ThumbnailUrl,
+                TagIds = _db.VideoTagMaps.Where(m => m.VideoID == v.VideoID).Select(m => m.TagID).ToList()
             })
             .ToListAsync();
 
@@ -73,6 +74,7 @@ public class TrainingVideosController : ControllerBase
                 Status = v.Status,
                 CreatedAt = v.CreatedAt,
                 UpdatedAt = v.UpdatedAt,
+                ThumbnailUrl = v.ThumbnailUrl,
                 TagIds = _db.VideoTagMaps.Where(m => m.VideoID == v.VideoID).Select(m => m.TagID).ToList()
             })
             .FirstOrDefaultAsync();
@@ -219,6 +221,44 @@ public class TrainingVideosController : ControllerBase
         return NoContent();
     }
 
+    // POST /api/TrainingVideos/{id}/thumbnail
+    [Authorize]
+    [HttpPost("{id:guid}/thumbnail")]
+    public async Task<IActionResult> UploadThumbnail(Guid id, IFormFile file)
+    {
+        if (!(User?.Identity?.IsAuthenticated ?? false)) return Unauthorized();
+        if (file == null || file.Length == 0) return BadRequest("No file.");
+
+        var video = await _db.TrainingVideos.FirstOrDefaultAsync(v => v.VideoID == id);
+        if (video == null) return NotFound();
+
+        var me = User.GetMemberId();
+        if (video.CreatedByMemberID != me && !User.IsAdmin()) return Forbid();
+
+        var allowedContentTypes = new[] { "image/png", "image/jpeg", "image/webp" };
+        if (!allowedContentTypes.Contains(file.ContentType)) return BadRequest("Unsupported image type.");
+        if (file.Length > 5 * 1024 * 1024) return BadRequest("Max 5MB.");
+
+        var uploads = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "trainingvideos");
+        Directory.CreateDirectory(uploads);
+
+        var ext = Path.GetExtension(file.FileName);
+        if (string.IsNullOrWhiteSpace(ext)) ext = ".jpg";
+        else ext = ext.ToLowerInvariant();
+
+        var fileName = $"{id}{ext}";
+        var fullPath = Path.Combine(uploads, fileName);
+
+        using (var fs = new FileStream(fullPath, FileMode.Create))
+            await file.CopyToAsync(fs);
+
+        var urlBase = $"{Request.Scheme}://{Request.Host}";
+        video.ThumbnailUrl = $"{urlBase}/uploads/trainingvideos/{fileName}";
+        video.UpdatedAt = DateTime.UtcNow;
+        await _db.SaveChangesAsync();
+
+        return Ok(new { thumbnailUrl = video.ThumbnailUrl });
+    }
     // DELETE /api/TrainingVideos/{id}
     [Authorize]
     [HttpDelete("{id:guid}")]
@@ -241,6 +281,3 @@ public class TrainingVideosController : ControllerBase
         return NoContent();
     }
 }
-
-
-

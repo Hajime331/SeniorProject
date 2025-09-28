@@ -24,6 +24,7 @@ namespace Meow.Web.Services
 
         // 新增：支援 keyword 的搜尋
         Task<IReadOnlyList<TagDto>> GetTagsAsync(string? keyword);
+        Task<IReadOnlyList<TagDto>> GetTagsAsync(string? keyword, string? category);
 
         // 新增：建立 / 更新 / 刪除
         Task<TagDto> CreateTagAsync(TagCreateDto dto);
@@ -184,9 +185,3 @@ namespace Meow.Web.Services
 
     }
 }
-
-
-
-
-
-

@@ -291,7 +291,7 @@ namespace Meow.Web.Areas.Admin.Controllers
             try
             {
                 await _api.DeleteTrainingSetAsync(id);
-                TempData["Ok"] = "課表已刪除。";
+                TempData["Ok"] = "課表已刪除或已封存。";
             }
             catch (ApplicationException ex)
             {
@@ -299,6 +299,7 @@ namespace Meow.Web.Areas.Admin.Controllers
             }
             return RedirectToAction(nameof(Index));
         }
+
 
         [HttpGet]
         public async Task<IActionResult> SearchVideos(string? q)

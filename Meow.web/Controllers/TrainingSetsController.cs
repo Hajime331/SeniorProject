@@ -1,8 +1,11 @@
-﻿using Meow.Shared.Dtos.TrainingSets;
+using Meow.Shared.Dtos.TrainingSets;
+using Meow.Shared.Dtos.TrainingSessions;
 using Meow.Web.Services;
 using Meow.Web.ViewModels.TrainingSets;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Net.Http;
+using System.Security.Claims;
 
 [Authorize]
 public class TrainingSetsController : Controller
@@ -132,3 +135,4 @@ public class TrainingSetsController : Controller
     }
 
 }
+

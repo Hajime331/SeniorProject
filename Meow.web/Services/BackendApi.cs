@@ -39,11 +39,18 @@ namespace Meow.Web.Services
         }
 
 
-        public async Task<IReadOnlyList<TagDto>> GetTagsAsync(string? keyword)
+        public Task<IReadOnlyList<TagDto>> GetTagsAsync(string? keyword)
+            => GetTagsAsync(keyword, null);
+
+        public async Task<IReadOnlyList<TagDto>> GetTagsAsync(string? keyword, string? category)
         {
-            var url = string.IsNullOrWhiteSpace(keyword)
+            var query = new Dictionary<string, string?>();
+            if (!string.IsNullOrWhiteSpace(keyword)) query["keyword"] = keyword.Trim();
+            if (!string.IsNullOrWhiteSpace(category)) query["category"] = category.Trim();
+
+            var url = query.Count == 0
                 ? "api/Tags"
-                : QueryHelpers.AddQueryString("api/Tags", new Dictionary<string, string?> { ["keyword"] = keyword });
+                : QueryHelpers.AddQueryString("api/Tags", query);
 
             return await _http.GetFromJsonAsync<List<TagDto>>(url) ?? new List<TagDto>();
         }

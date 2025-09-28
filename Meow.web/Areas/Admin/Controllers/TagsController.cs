@@ -1,7 +1,9 @@
-﻿using Meow.Shared.Dtos.Tags;
+using Meow.Shared.Dtos.Tags;
 using Meow.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System;
+using System.Linq;
 
 namespace Meow.Web.Areas.Admin.Controllers
 {
@@ -14,10 +16,22 @@ namespace Meow.Web.Areas.Admin.Controllers
 
         // GET: /Admin/Tags?keyword=
         [HttpGet]
-        public async Task<IActionResult> Index(string? keyword)
+        public async Task<IActionResult> Index(string? keyword, string? category)
         {
-            var tags = await _api.GetTagsAsync(keyword);
+            var trimmedCategory = string.IsNullOrWhiteSpace(category) ? null : category.Trim();
+
+            var tags = await _api.GetTagsAsync(keyword, trimmedCategory);
+            var allTags = await _api.GetTagsAsync();
+            var categories = allTags
+                .Select(t => t.Category?.Trim())
+                .Where(c => !string.IsNullOrWhiteSpace(c))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(c => c, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
             ViewBag.Keyword = keyword;
+            ViewBag.SelectedCategory = trimmedCategory;
+            ViewBag.Categories = categories;
             return View(tags);
         }
 
