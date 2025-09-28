@@ -1,75 +1,76 @@
-﻿@model IEnumerable<Meow.Shared.Dtos.Tags.TagDto>
+@model IEnumerable<Meow.Shared.Dtos.Tags.TagDto>
 @{
     ViewData["Title"] = "標籤管理";
     var keyword = (string?)ViewBag.Keyword ?? string.Empty;
-    var status  = (string?)ViewBag.Status  ?? string.Empty; // 若你的 Controller 支援狀態查詢
 }
 
-<h2 class="mb-3">標籤管理</h2>
+<div class="container my-4">
+    <h2 class="mb-3">標籤管理</h2>
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <form asp-action="Index" method="get" class="d-flex gap-2">
-        <input type="text" name="keyword" value="@keyword" class="form-control" placeholder="關鍵字（名稱/分類）" />
+    <div class="row g-3">
+        <aside class="col-12 col-lg-3">
+            <div class="card shadow-sm position-sticky" style="top:1.5rem;">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">搜尋條件</h5>
+                    <form asp-action="Index" method="get" class="d-grid gap-3">
+                        <div>
+                            <label class="form-label mb-1" for="keyword">名稱或分類</label>
+                            <input id="keyword" name="keyword" class="form-control" value="@keyword" placeholder="輸入關鍵字" />
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">搜尋</button>
+                            <a asp-action="Index" class="btn btn-outline-secondary">清除條件</a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </aside>
 
-        <select id="statusSelect" name="status" class="form-select" style="min-width:160px;">
-            <option value="">全部狀態</option>
-            <option value="Active">Active</option>
-            <option value="Inactive">Inactive</option>
-        </select>
+        <section class="col-12 col-lg-9">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <div>
+                    <a asp-action="Create" class="btn btn-primary">新增標籤</a>
+                </div>
+            </div>
 
-        <button type="submit" class="btn btn-outline-secondary">查詢</button>
-        <a asp-action="Index" class="btn btn-outline-dark">重設</a>
-    </form>
-
-    <a asp-action="Create" class="btn btn-primary">新增標籤</a>
+            <div class="card shadow-sm">
+                <div class="table-responsive">
+                    <table class="table table-striped align-middle mb-0">
+                        <thead>
+                            <tr>
+                                <th style="width:40%;">名稱</th>
+                                <th style="width:40%;">分類</th>
+                                <th style="width:20%;" class="text-end"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @if (Model == null || !Model.Any())
+                            {
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted py-4">目前沒有符合條件的標籤。</td>
+                                </tr>
+                            }
+                            else
+                            {
+                                foreach (var tag in Model)
+                                {
+                                    <tr>
+                                        <td class="fw-semibold">@tag.Name</td>
+                                        <td>@(string.IsNullOrWhiteSpace(tag.Category) ? "-" : tag.Category)</td>
+                                        <td class="text-end">
+                                            <a asp-action="Edit" asp-route-id="@tag.TagId" class="btn btn-sm btn-warning me-1">編輯</a>
+                                            <form asp-action="Delete" asp-route-id="@tag.TagId" method="post" class="d-inline"
+                                                  onsubmit="return confirm('確認要刪除標籤「@tag.Name」嗎？');">
+                                                <button type="submit" class="btn btn-sm btn-danger">刪除</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
+    </div>
 </div>
-
-@if (TempData["Ok"] is string ok && !string.IsNullOrWhiteSpace(ok))
-{
-    <div class="alert alert-success">@ok</div>
-}
-@if (TempData["Error"] is string err && !string.IsNullOrWhiteSpace(err))
-{
-    <div class="alert alert-danger">@err</div>
-}
-
-<table class="table table-striped align-middle">
-    <thead>
-        <tr>
-            <th style="width:40%;">名稱</th>
-            <th style="width:40%;">分類</th>
-            <th style="width:20%;"></th>
-        </tr>
-    </thead>
-    <tbody>
-        @if (Model == null || !Model.Any())
-        {
-            <tr>
-                <td colspan="3" class="text-center text-muted py-4">目前沒有資料</td>
-            </tr>
-        }
-        else
-        {
-            foreach (var tag in Model)
-            {
-                <tr>
-                    <td class="fw-semibold">@tag.Name</td>
-                    <td>@(string.IsNullOrWhiteSpace(tag.Category) ? "-" : tag.Category)</td>
-                    <td class="text-end">
-                        <a asp-action="Edit" asp-route-id="@tag.TagId" class="btn btn-sm btn-warning me-1">編輯</a>
-                        <form asp-action="Delete" asp-route-id="@tag.TagId" method="post" class="d-inline"
-                              onsubmit="return confirm('確定要刪除標籤「@tag.Name」嗎？');">
-                            <button type="submit" class="btn btn-sm btn-danger">刪除</button>
-                        </form>
-                    </td>
-                </tr>
-            }
-        }
-    </tbody>
-</table>
-
-@section Scripts {
-    <script>
-        document.getElementById('statusSelect').value = '@status';
-    </script>
-}

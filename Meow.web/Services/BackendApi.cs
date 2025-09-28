@@ -1,4 +1,4 @@
-﻿using Meow.Shared.Dtos.Accounts;
+using Meow.Shared.Dtos.Accounts;
 using Meow.Shared.Dtos.Analytics;
 using Meow.Shared.Dtos.Common;
 using Meow.Shared.Dtos.Tags;
@@ -6,7 +6,9 @@ using Meow.Shared.Dtos.TrainingSessions;
 using Meow.Shared.Dtos.TrainingSets;
 using Meow.Shared.Dtos.Videos;
 using Meow.Web.Models;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.WebUtilities;
+using System.Collections.Generic;
 using System.Globalization;
 using System.Net;
 using System.Net.Http.Json;
@@ -310,6 +312,31 @@ namespace Meow.Web.Services
             }
         }
 
+        public async Task<string?> UploadMemberAvatarAsync(Guid memberId, IFormFile file)
+        {
+            using var form = new MultipartFormDataContent();
+            await using var stream = file.OpenReadStream();
+            var sc = new StreamContent(stream);
+            sc.Headers.ContentType =
+                new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType ?? "application/octet-stream");
+            form.Add(sc, "file", file.FileName);
+
+            using var resp = await _http.PostAsync($"api/Members/{memberId}/avatar/upload", form);
+            if (!resp.IsSuccessStatusCode) return null;
+
+            try
+            {
+                var obj = await resp.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+                if (obj != null && obj.TryGetValue("avatarUrl", out var url) && !string.IsNullOrWhiteSpace(url))
+                {
+                    return url;
+                }
+            }
+            catch { }
+
+            var text = await resp.Content.ReadAsStringAsync();
+            return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
+        }
         public async Task<PagedResultDto<TrainingSessionListItemDto>> GetTrainingSessionsAsync(
         Guid memberId, DateTime? from, DateTime? to, int page, int pageSize,
         IEnumerable<string>? tagIds = null)
@@ -449,33 +476,27 @@ namespace Meow.Web.Services
             var sc = new StreamContent(fs);
             sc.Headers.ContentType =
                 new System.Net.Http.Headers.MediaTypeHeaderValue(file.ContentType ?? "application/octet-stream");
-            form.Add(sc, "file", file.FileName); // 表單欄位名 "file"：請確保後端也是讀這個 key
+            form.Add(sc, "file", file.FileName); // 後端請讀取 key="file"
 
             using var resp = await _http.PostAsync($"api/TrainingVideos/{videoId}/thumbnail", form);
-
-            // 失敗時回傳 null，讓畫面顯示「上傳失敗」
             if (!resp.IsSuccessStatusCode) return null;
 
-            // 嘗試各種回傳格式
             try
             {
-                var json = await resp.Content.ReadFromJsonAsync<Dictionary<string, string>>();
-                if (json != null)
+                var obj = await resp.Content.ReadFromJsonAsync<Dictionary<string, string>>();
+                if (obj != null)
                 {
-                    if (json.TryGetValue("url", out var u) && !string.IsNullOrWhiteSpace(u)) return u;
-                    if (json.TryGetValue("coverUrl", out var cu) && !string.IsNullOrWhiteSpace(cu)) return cu;
-                    if (json.TryGetValue("thumbnailUrl", out var tu) && !string.IsNullOrWhiteSpace(tu)) return tu;
+                    if (obj.TryGetValue("url", out var u) && !string.IsNullOrWhiteSpace(u)) return u;
+                    if (obj.TryGetValue("thumbnailUrl", out var tu) && !string.IsNullOrWhiteSpace(tu)) return tu;
+                    if (obj.TryGetValue("coverUrl", out var cu) && !string.IsNullOrWhiteSpace(cu)) return cu;
                 }
-                // 不是 JSON，就當成純文字 URL
-                var text = await resp.Content.ReadAsStringAsync();
-                return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
             }
-            catch
-            {
-                var text = await resp.Content.ReadAsStringAsync();
-                return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
-            }
+            catch { /* 不是 JSON 就往下當純字串解析 */ }
+
+            var text = await resp.Content.ReadAsStringAsync();
+            return string.IsNullOrWhiteSpace(text) ? null : text.Trim();
         }
+
 
 
 
@@ -566,3 +587,11 @@ namespace Meow.Web.Services
 
     }
 }
+
+
+
+
+
+
+
+

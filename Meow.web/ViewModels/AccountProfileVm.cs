@@ -1,11 +1,12 @@
-﻿using Meow.Shared.Dtos.Accounts;
+using Meow.Shared.Dtos.Accounts;
+using Microsoft.AspNetCore.Http;
 using System.ComponentModel.DataAnnotations;
 
-// 會員個人資料 ViewModel（含擴展資訊）
+// 會員個人資料 ViewModel（含基本資料）
 public class AccountProfileVm
 {
     [Display(Name = "Email")]
-    public string Email { get; set; } = default!; // 只讀顯示
+    public string Email { get; set; } = default!;
 
     [Required, MaxLength(80)]
     [Display(Name = "暱稱")]
@@ -27,12 +28,15 @@ public class AccountProfileVm
     [Range(1, 500)]
     public int? WeightKg { get; set; }
 
-    // 目前已選定的頭像 ID
+    // 目前選擇的頭像 ID
     public Guid? AvatarID { get; set; }
 
-    // 目前頭像圖片網址（顯示用）
+    // 頭像圖片（包含預設或客製化網址）
     public string? AvatarUrl { get; set; }
 
-    // 可供選擇的系統頭像清單
+    // 可選擇的預設頭像清單
     public List<AvatarDto>? Avatars { get; set; }
+
+    [Display(Name = "頭貼上傳")]
+    public IFormFile? AvatarFile { get; set; }
 }

@@ -1,4 +1,4 @@
-﻿using Meow.Api.Data;
+using Meow.Api.Data;
 using Meow.Api.Infrastructure;
 using Meow.Shared.Dtos.Videos;
 using Microsoft.AspNetCore.Authorization;
@@ -241,3 +241,6 @@ public class TrainingVideosController : ControllerBase
         return NoContent();
     }
 }
+
+
+

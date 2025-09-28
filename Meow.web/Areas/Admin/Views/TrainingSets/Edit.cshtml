@@ -1,13 +1,20 @@
-﻿@model TrainingSetEditViewModel
+@model TrainingSetEditViewModel
+@using System.Linq
 @{
     ViewData["Title"] = "編輯課表";
     var tags = (IReadOnlyList<Meow.Shared.Dtos.Tags.TagDto>)ViewBag.AllTags;
+    var videos = ViewBag.AllVideos as IEnumerable<Meow.Shared.Dtos.Videos.TrainingVideoListItemDto>
+                 ?? Enumerable.Empty<Meow.Shared.Dtos.Videos.TrainingVideoListItemDto>();
+    Func<Guid, string> titleFor = id => videos.FirstOrDefault(v => v.VideoId == id)?.Title ?? string.Empty;
+    var items = (Model.Items != null && Model.Items.Count > 0)
+        ? Model.Items
+        : new List<TrainingSetItemEditViewModel>();
+    var selectedTags = new HashSet<Guid>(Model.TagIds ?? new List<Guid>());
 }
 
 <div class="container my-4">
     <h3 class="mb-3">編輯課表</h3>
 
-    @* 成功 / 失敗訊息 *@
     @if (TempData["Ok"] is string okMsg)
     {
         <div class="alert alert-success alert-dismissible fade show" role="alert">
@@ -29,7 +36,6 @@
 
         <div class="row g-3">
             <div class="col-lg-8">
-
                 <div class="mb-3">
                     <label asp-for="Name" class="form-label fw-bold"></label>
                     <input asp-for="Name" class="form-control" />
@@ -50,48 +56,49 @@
                         <input asp-for="Difficulty" class="form-control" />
                     </div>
                     <div class="col-md-6">
-                        <label asp-for="EstimatedDurationSec" class="form-label fw-bold">預估秒數</label>
+                        <label asp-for="EstimatedDurationSec" class="form-label fw-bold">預估時長 (秒)</label>
                         <input asp-for="EstimatedDurationSec" class="form-control" type="number" min="0" />
                     </div>
                 </div>
 
                 <hr />
 
-                <h5 class="mb-2">課表項目 Items</h5>
-
+                <h5 class="mb-2">課表項目</h5>
                 <div id="items">
-                    @for (int i = 0; i < Model.Items.Count; i++)
+                    @for (var i = 0; i < items.Count; i++)
                     {
+                        var item = items[i];
                         <div class="card mb-2 training-item" data-index="@i">
                             <div class="card-body">
                                 <div class="row g-2 align-items-end">
-
-                                    <input type="hidden" name="Items[@i].SetItemId" value="@Model.Items[i].SetItemId" />
-
+                                    <input type="hidden" name="Items[@i].SetItemId" value="@item.SetItemId" />
                                     <div class="col-12">
                                         <label class="form-label">影片</label>
-                                        <input type="hidden" name="Items[@i].VideoId" value="@Model.Items[i].VideoId" class="video-id" />
+                                        <input type="hidden" name="Items[@i].VideoId" class="video-id"
+                                               value="@(item.VideoId == Guid.Empty ? string.Empty : item.VideoId.ToString())" />
                                         <input type="text" class="form-control video-search"
-                                               placeholder="輸入關鍵字搜尋影片…" data-target="#video-list-@i" autocomplete="off" />
+                                               placeholder="輸入關鍵字搜尋影片"
+                                               data-target="#video-list-@i"
+                                               autocomplete="off"
+                                               value="@titleFor(item.VideoId)" />
                                         <div class="list-group position-absolute w-100 shadow-sm d-none"
                                              id="video-list-@i" style="z-index:1000; max-height:240px; overflow:auto;"></div>
                                     </div>
-
                                     <div class="col-3">
-                                        <label class="form-label">順序</label>
-                                        <input name="Items[@i].OrderNo" class="form-control" type="number" value="@Model.Items[i].OrderNo" />
+                                        <label class="form-label">排序</label>
+                                        <input name="Items[@i].OrderNo" class="form-control" type="number" value="@item.OrderNo" />
                                     </div>
                                     <div class="col-3">
                                         <label class="form-label">次數</label>
-                                        <input name="Items[@i].TargetReps" class="form-control" type="number" value="@Model.Items[i].TargetReps" />
+                                        <input name="Items[@i].TargetReps" class="form-control" type="number" value="@(item.TargetReps?.ToString() ?? string.Empty)" />
                                     </div>
                                     <div class="col-3">
-                                        <label class="form-label">休息秒</label>
-                                        <input name="Items[@i].RestSec" class="form-control" type="number" value="@Model.Items[i].RestSec" />
+                                        <label class="form-label">休息秒數</label>
+                                        <input name="Items[@i].RestSec" class="form-control" type="number" value="@(item.RestSec?.ToString() ?? string.Empty)" />
                                     </div>
                                     <div class="col-3">
                                         <label class="form-label">回合</label>
-                                        <input name="Items[@i].Rounds" class="form-control" type="number" value="@Model.Items[i].Rounds" />
+                                        <input name="Items[@i].Rounds" class="form-control" type="number" value="@(item.Rounds?.ToString() ?? string.Empty)" />
                                     </div>
                                 </div>
                             </div>
@@ -99,39 +106,39 @@
                     }
                 </div>
 
-                <button type="button" class="btn btn-outline-secondary btn-sm mb-3" id="btnAddItem">新增一列</button>
+                <button type="button" class="btn btn-outline-secondary btn-sm mb-3" id="btnAddItem">新增項目</button>
 
                 <div class="d-grid">
-                    <button type="submit" class="btn btn-primary">儲存</button>
+                    <button type="submit" class="btn btn-primary">儲存修改</button>
                 </div>
             </div>
 
             <div class="col-lg-4">
                 <div class="mb-3">
-                    <label class="form-label fw-bold">封面圖</label>
+                    <label class="form-label fw-bold">封面圖片</label>
                     <input asp-for="CoverFile" type="file" class="form-control" accept="image/*" id="coverFile" />
                     <div class="mt-2">
-                        <img id="coverPreview"
-                             src="@(string.IsNullOrWhiteSpace(Model?.CoverUrl) ? "" : Model.CoverUrl)"
-                             class="rounded border" style="max-width:220px;@(string.IsNullOrWhiteSpace(Model?.CoverUrl) ? "display:none" : "")" />
+                        @if (!string.IsNullOrWhiteSpace(Model.CoverUrl))
+                        {
+                            <img id="coverPreview" src="@Model.CoverUrl" class="rounded border" style="max-width:220px;" />
+                        }
+                        else
+                        {
+                            <img id="coverPreview" class="rounded border" style="max-width:220px;display:none" />
+                        }
                     </div>
-                    <div class="form-text">選擇檔案後會即時預覽，按「儲存」才會上傳。</div>
                 </div>
 
                 <div class="mb-3">
                     <label class="form-label fw-bold">標籤</label>
-                    @{
-                        var selected = Model?.TagIds ?? new List<Guid>();
-                    }
                     <div class="row row-cols-2 g-2">
-                        @foreach (var t in tags)
+                        @foreach (var tag in tags)
                         {
-                            var isChecked = selected.Contains(t.TagId);
                             <div class="col">
                                 <div class="form-check">
-                                    <input class="form-check-input" type="checkbox" name="TagIds" value="@t.TagId"
-                                           id="tag_@t.TagId" @(isChecked ? "checked" : null) />
-                                    <label class="form-check-label" for="tag_@t.TagId">@t.Name</label>
+                                    <input class="form-check-input" type="checkbox" name="TagIds" value="@tag.TagId"
+                                           id="tag_@tag.TagId" @(selectedTags.Contains(tag.TagId) ? "checked" : null) />
+                                    <label class="form-check-label" for="tag_@tag.TagId">@tag.Name</label>
                                 </div>
                             </div>
                         }
@@ -144,23 +151,24 @@
 
 @section Scripts {
     <script>
-        // 封面即時預覽（上傳後在 GET Edit 會以 CoverUrl 再顯示）
         (function(){
           const input = document.getElementById('coverFile');
           const preview = document.getElementById('coverPreview');
           if (input && preview) {
             input.addEventListener('change', e => {
               const [file] = e.target.files || [];
-              if (file) { preview.src = URL.createObjectURL(file); preview.style.display=''; }
+              if (file) {
+                preview.src = URL.createObjectURL(file);
+                preview.style.display='';
+              }
             });
           }
         })();
 
-        // 影片搜尋：選到後把「名稱」寫回輸入框，GUID 留在 hidden
         async function fetchVideos(q){
           if(!q || q.length < 2) return [];
-          const r = await fetch('@Url.Action("SearchVideos")?q='+encodeURIComponent(q));
-          return r.ok ? await r.json() : [];
+          const res = await fetch('@Url.Action("SearchVideos")?q='+encodeURIComponent(q));
+          return res.ok ? await res.json() : [];
         }
 
         function bindVideoSearch(container){
@@ -178,8 +186,8 @@
               a.textContent = v.title;
               a.addEventListener('click', e=>{
                 e.preventDefault();
-                hidden.value = v.videoId;  // 寫回 GUID
-                input.value  = v.title;    // 顯示名稱在輸入框
+                hidden.value = v.videoId;
+                input.value  = v.title;
                 list.classList.add('d-none');
               });
               list.appendChild(a);
@@ -194,7 +202,6 @@
 
         document.querySelectorAll('.training-item').forEach(bindVideoSearch);
 
-        // 動態新增列
         document.getElementById('btnAddItem')?.addEventListener('click', ()=>{
           const items = document.getElementById('items');
           const i = items.querySelectorAll('.training-item').length;
@@ -205,13 +212,13 @@
                 <input type="hidden" name="Items[${i}].SetItemId" />
                 <div class="col-12">
                   <label class="form-label">影片</label>
-                  <input type="hidden" name="Items[${i}].VideoId" class="video-id" />
-                  <input type="text" class="form-control video-search" placeholder="輸入關鍵字搜尋影片…" data-target="#video-list-${i}" autocomplete="off" />
+                  <input type="hidden" name="Items[${i}].VideoId" class="video-id" value="" />
+                  <input type="text" class="form-control video-search" placeholder="輸入關鍵字搜尋影片" data-target="#video-list-${i}" autocomplete="off" />
                   <div class="list-group position-absolute w-100 shadow-sm d-none" id="video-list-${i}" style="z-index:1000; max-height:240px; overflow:auto;"></div>
                 </div>
-                <div class="col-3"><label class="form-label">順序</label><input name="Items[${i}].OrderNo" class="form-control" type="number" value="${i+1}" /></div>
+                <div class="col-3"><label class="form-label">排序</label><input name="Items[${i}].OrderNo" class="form-control" type="number" value="${i+1}" /></div>
                 <div class="col-3"><label class="form-label">次數</label><input name="Items[${i}].TargetReps" class="form-control" type="number" /></div>
-                <div class="col-3"><label class="form-label">休息秒</label><input name="Items[${i}].RestSec" class="form-control" type="number" /></div>
+                <div class="col-3"><label class="form-label">休息秒數</label><input name="Items[${i}].RestSec" class="form-control" type="number" /></div>
                 <div class="col-3"><label class="form-label">回合</label><input name="Items[${i}].Rounds" class="form-control" type="number" value="1" /></div>
               </div>
             </div>
@@ -221,3 +228,7 @@
         });
     </script>
 }
+
+
+
+

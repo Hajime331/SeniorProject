@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Meow.Web.Services;
 using Meow.Shared.Dtos;
@@ -16,7 +16,6 @@ public class AccountController : Controller
         _logger = logger;
     }
 
-
     [HttpGet]
     public IActionResult ChangePassword() => View(new ChangePasswordVm());
 
@@ -28,7 +27,7 @@ public class AccountController : Controller
 
         try
         {
-            var id = User.GetUserId(); // 你已實作的擴充方法（TryParse + 丟例外版）
+            var id = User.GetUserId();
             var dto = new ChangePasswordDto
             {
                 CurrentPassword = vm.CurrentPassword,
@@ -42,17 +41,15 @@ public class AccountController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "變更密碼失敗");
-            TempData["Error"] = "變更密碼失敗，請確認目前密碼或稍後再試。";
+            TempData["Error"] = "變更密碼時發生錯誤，請確認目前密碼並稍後重試。";
             return View(vm);
         }
     }
-
 
     [HttpGet]
     public async Task<IActionResult> Profile()
     {
         var id = User.GetUserId();
-        // 取得基本會員資料與擴展資料
         var member = await _api.GetMemberAsync(id);
         var profile = await _api.GetMemberProfileAsync(id);
         var avatars = await _api.GetAvatarsAsync();
@@ -78,7 +75,6 @@ public class AccountController : Controller
     {
         if (!ModelState.IsValid)
         {
-            // 若驗證失敗，重新載入可選頭像列表以供顯示
             vm.Avatars = await _api.GetAvatarsAsync();
             return View(vm);
         }
@@ -86,10 +82,8 @@ public class AccountController : Controller
         try
         {
             var id = User.GetUserId();
-            // 更新暱稱
             await _api.UpdateMemberNicknameAsync(id, vm.Nickname);
 
-            // 更新擴展資料
             var dto = new MemberProfileUpdateDto
             {
                 BirthDate = vm.BirthDate,
@@ -99,9 +93,18 @@ public class AccountController : Controller
             };
             await _api.UpdateMemberProfileAsync(id, dto);
 
-            // 若有選擇頭像，呼叫 API 更新頭像
-            if (vm.AvatarID.HasValue)
+            if (vm.AvatarFile != null && vm.AvatarFile.Length > 0)
+            {
+                var avatarUrl = await _api.UploadMemberAvatarAsync(id, vm.AvatarFile);
+                if (string.IsNullOrWhiteSpace(avatarUrl))
+                {
+                    TempData["Error"] = "頭貼上傳失敗，請稍後再試。";
+                }
+            }
+            else if (vm.AvatarID.HasValue)
+            {
                 await _api.UpdateMemberAvatarAsync(id, vm.AvatarID.Value);
+            }
 
             TempData["Success"] = "個人資料已更新。";
             return RedirectToAction(nameof(Profile));
@@ -109,8 +112,7 @@ public class AccountController : Controller
         catch (Exception ex)
         {
             _logger.LogError(ex, "更新個人資料失敗");
-            TempData["Error"] = "更新個人資料失敗，請稍後再試。";
-            // 失敗時仍需重新載入頭像清單
+            TempData["Error"] = "更新個人資料時發生問題，請稍後再試。";
             vm.Avatars = await _api.GetAvatarsAsync();
             return View(vm);
         }

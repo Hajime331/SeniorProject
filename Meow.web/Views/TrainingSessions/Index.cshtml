@@ -1,171 +1,165 @@
-﻿@model TrainingSessionIndexVm
+@model TrainingSessionIndexVm
 @{
     ViewData["Title"] = "我的訓練紀錄";
+
+    bool hasResult = Model.Result is not null && Model.Result.Items.Any();
+    int totalCount = Model.Result?.TotalCount ?? 0;
+    int currentPage = Model.Result?.Page ?? 1;
+    int pageSize = Model.Result?.PageSize ?? 10;
+    int totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)pageSize));
+
+    string? FormatDate(DateTime? dt) => dt?.ToString("yyyy-MM-dd");
+    string BuildPageUrl(int targetPage) => Url.Action("Index", new
+    {
+        from = FormatDate(Model.From),
+        to = FormatDate(Model.To),
+        page = targetPage,
+        pageSize,
+        tagIds = Model.SelectedTagIds
+    }) ?? "#";
+
+    bool IsPrevDisabled(int current) => current <= 1;
+    bool IsNextDisabled(int current, int pages) => current >= pages;
 }
 
-<h2 class="mb-3">我的訓練紀錄</h2>
-
-<form method="get" class="mb-4">
-    <div class="row g-2 align-items-end">
-        <div class="col-auto">
-            <label class="form-label">起</label>
-            <input type="date" name="from" class="form-control" value="@(Model.From?.ToString("yyyy-MM-dd"))" />
-        </div>
-        <div class="col-auto">
-            <label class="form-label">迄</label>
-            <input type="date" name="to" class="form-control" value="@(Model.To?.ToString("yyyy-MM-dd"))" />
-        </div>
-    </div>
-
-    <div class="mt-3">
-        <div class="form-label">標籤（可多選）</div>
-        <div class="row row-cols-2 row-cols-md-4 g-2">
-            @foreach (var t in Model.AllTags)
-            {
-                var checkedAttr = Model.SelectedTagIds.Contains(t.TagID.ToString())
-                                  || Model.SelectedTagIds.Contains(t.Name)
-                                  ? "checked" : null;
-                <div class="col">
-                    <div class="form-check">
-                        <input class="form-check-input"
-                               type="checkbox"
-                               name="tagIds"
-                               value="@t.TagID"
-                               id="tag_@t.TagID"
-                               @(checkedAttr) />
-                        <label class="form-check-label" for="tag_@t.TagID">@t.Name</label>
-                    </div>
-                </div>
-            }
-        </div>
-    </div>
-
-    <button type="submit" class="btn btn-primary mt-3">篩選</button>
-</form>
-
-@if (Model.Result is not null && Model.Result.Items.Any())
-{
-    <div class="d-flex justify-content-between align-items-center mb-2">
-        <div class="text-muted">共 @Model.Result.TotalCount 筆</div>
-        <div>
-            @{
-                var totalPages = (int)Math.Ceiling((double)Model.Result.TotalCount / Model.Result.PageSize);
-                var prevDisabled = Model.Result.Page <= 1 ? "disabled" : "";
-                var nextDisabled = Model.Result.Page >= totalPages ? "disabled" : "";
-            }
-            <a class="btn btn-outline-secondary btn-sm @prevDisabled"
-               href="@Url.Action("Index", new {
-                    from = Model.From?.ToString("yyyy-MM-dd"),
-                    to = Model.To?.ToString("yyyy-MM-dd"),
-                    page = Model.Result.Page - 1,
-                    pageSize = Model.Result.PageSize,
-                    tagIds = Model.SelectedTagIds
-               })">上一頁</a>
-
-            <span class="mx-2 small">第 @Model.Result.Page / @Math.Max(1, (int)Math.Ceiling((double)Model.Result.TotalCount / Model.Result.PageSize)) 頁</span>
-
-            <a class="btn btn-outline-secondary btn-sm @nextDisabled"
-               href="@Url.Action("Index", new {
-                    from = Model.From?.ToString("yyyy-MM-dd"),
-                    to = Model.To?.ToString("yyyy-MM-dd"),
-                    page = Model.Result.Page + 1,
-                    pageSize = Model.Result.PageSize,
-                    tagIds = Model.SelectedTagIds
-               })">下一頁</a>
-        </div>
-    </div>
-
-    <div class="list-group">
-        @foreach (var s in Model.Result.Items)
-        {
-            <div class="list-group-item">
-                <div class="d-flex justify-content-between">
-                    <div class="me-3">
+<div class="container my-4">
+    <div class="row g-3">
+        <aside class="col-12 col-lg-3">
+            <div class="card shadow-sm position-sticky" style="top: 1.5rem;">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">搜尋條件</h5>
+                    <form method="get" class="d-grid gap-3">
                         <div>
-                            <strong>@s.StartedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")</strong>
-                            <span class="text-muted">— @s.SetName</span>
+                            <label class="form-label mb-1">起始日期</label>
+                            <input type="date" name="from" class="form-control" value="@FormatDate(Model.From)" />
                         </div>
-
-                        @* 若 DTO 已加 TagNames，顯示徽章 *@
-                        @if (s.TagNames?.Any() == true)
-                        {
-                            <div class="small mt-1">
-                                @foreach (var name in s.TagNames)
-                                {
-                                    <span class="badge text-bg-secondary me-1">@name</span>
-                                }
+                        <div>
+                            <label class="form-label mb-1">結束日期</label>
+                            <input type="date" name="to" class="form-control" value="@FormatDate(Model.To)" />
+                        </div>
+                        <div>
+                            <div class="form-label mb-2">標籤（可複選）</div>
+                            <div class="border rounded p-2" style="max-height: 260px; overflow-y: auto;">
+                                <div class="row row-cols-1 g-2">
+                                    @foreach (var tag in Model.AllTags)
+                                    {
+                                        var (tagId, tagName, tagCategory) = tag;
+                                        bool isChecked = Model.SelectedTagIds.Contains(tagId.ToString())
+                                                         || Model.SelectedTagIds.Contains(tagName);
+                                        <div class="col">
+                                            <div class="form-check">
+                                                <input class="form-check-input" type="checkbox" name="tagIds" value="@tagId" id="tag_@tagId" @(isChecked ? "checked" : null) />
+                                                <label class="form-check-label" for="tag_@tagId">
+                                                    @tagName
+                                                    @if (!string.IsNullOrWhiteSpace(tagCategory))
+                                                    {
+                                                        <span class="text-muted small ms-1">(@tagCategory)</span>
+                                                    }
+                                                </label>
+                                            </div>
+                                        </div>
+                                    }
+                                </div>
                             </div>
-                        }
-
-                        @if (!string.IsNullOrWhiteSpace(s.Notes))
-                        {
-                            <div class="small text-muted mt-1">備註：@s.Notes</div>
-                        }
-                    </div>
-
-                    <div class="text-end">
-                        @if (s.CompletedFlag)
-                        {
-                            <span class="badge text-bg-success">已完成</span>
-                            <div class="mt-2">
-                                <a class="btn btn-sm btn-outline-primary"
-                                   asp-action="Detail" asp-route-id="@s.SessionID">查看</a>
-                            </div>
-                        }
-                        else
-                        {
-                            <span class="badge text-bg-warning text-dark">進行中</span>
-                            <div class="mt-2">
-                                <a class="btn btn-sm btn-outline-primary me-2"
-                                   asp-action="Detail" asp-route-id="@s.SessionID">查看</a>
-
-                                @* 結束訓練（非 AJAX）— 直接打到 Web Controller 的 Complete 動作 *@
-                                <form asp-action="Complete" method="post" class="d-inline"
-                                      onsubmit="return confirm('確定要結束這場訓練嗎？');">
-                                    @Html.AntiForgeryToken()
-                                    <input type="hidden" name="id" value="@s.SessionID" />
-                                    <button type="submit" class="btn btn-sm btn-danger">
-                                        結束訓練
-                                    </button>
-                                </form>
-                            </div>
-                        }
-                    </div>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary">搜尋</button>
+                            <a class="btn btn-outline-secondary" asp-action="Index">清除條件</a>
+                        </div>
+                    </form>
                 </div>
             </div>
-        }
-    </div>
+        </aside>
 
-    <div class="d-flex justify-content-between align-items-center mt-3">
-        <div class="text-muted small">
-            每頁 @Model.Result.PageSize 筆
-        </div>
-        <div>
-            <a class="btn btn-outline-secondary btn-sm @((Model.Result.Page <= 1) ? "disabled" : "")"
-               href="@Url.Action("Index", new {
-                    from = Model.From?.ToString("yyyy-MM-dd"),
-                    to = Model.To?.ToString("yyyy-MM-dd"),
-                    page = Model.Result.Page - 1,
-                    pageSize = Model.Result.PageSize,
-                    tagIds = Model.SelectedTagIds
-               })">上一頁</a>
+        <section class="col-12 col-lg-9">
+            <h2 class="mb-3">我的訓練紀錄</h2>
 
-            <a class="btn btn-outline-secondary btn-sm @(((Model.Result.Page * Model.Result.PageSize) >= Model.Result.TotalCount) ? "disabled" : "")"
-               href="@Url.Action("Index", new {
-                    from = Model.From?.ToString("yyyy-MM-dd"),
-                    to = Model.To?.ToString("yyyy-MM-dd"),
-                    page = Model.Result.Page + 1,
-                    pageSize = Model.Result.PageSize,
-                    tagIds = Model.SelectedTagIds
-               })">下一頁</a>
-        </div>
+            @if (!hasResult)
+            {
+                <div class="alert alert-light border text-muted">目前沒有符合條件的訓練紀錄。</div>
+            }
+            else
+            {
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                    <div class="text-muted">共 @totalCount 筆紀錄</div>
+                    <div class="d-flex align-items-center gap-2">
+                        <a class="btn btn-outline-secondary btn-sm @(IsPrevDisabled(currentPage) ? "disabled" : string.Empty)"
+                           href="@(IsPrevDisabled(currentPage) ? "#" : BuildPageUrl(currentPage - 1))">上一頁</a>
+                        <span class="small text-nowrap">第 @currentPage / @totalPages 頁</span>
+                        <a class="btn btn-outline-secondary btn-sm @(IsNextDisabled(currentPage, totalPages) ? "disabled" : string.Empty)"
+                           href="@(IsNextDisabled(currentPage, totalPages) ? "#" : BuildPageUrl(currentPage + 1))">下一頁</a>
+                    </div>
+                </div>
+
+                <div class="list-group">
+                    @foreach (var s in Model.Result!.Items)
+                    {
+                        <div class="list-group-item list-group-item-action">
+                            <div class="d-flex flex-column flex-md-row justify-content-between gap-3">
+                                <div class="me-md-3">
+                                    <div class="fw-semibold">
+                                        @s.StartedAt.ToLocalTime().ToString("yyyy/MM/dd HH:mm")
+                                        <span class="text-muted ms-2">· @s.SetName</span>
+                                    </div>
+
+                                    @if (s.TagNames?.Any() == true)
+                                    {
+                                        <div class="mt-2 d-flex flex-wrap gap-2">
+                                            @foreach (var name in s.TagNames)
+                                            {
+                                                <span class="badge rounded-pill text-bg-secondary">@name</span>
+                                            }
+                                        </div>
+                                    }
+
+                                    @if (!string.IsNullOrWhiteSpace(s.Notes))
+                                    {
+                                        <div class="small text-muted mt-2">備註：@s.Notes</div>
+                                    }
+                                </div>
+
+                                <div class="text-md-end">
+                                    @if (s.CompletedFlag)
+                                    {
+                                        <span class="badge text-bg-success">已完成</span>
+                                        <div class="mt-2">
+                                            <a class="btn btn-sm btn-outline-primary" asp-action="Detail" asp-route-id="@s.SessionID">查看</a>
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge text-bg-warning text-dark">進行中</span>
+                                        <div class="mt-2 d-flex flex-wrap gap-2 justify-content-md-end">
+                                            <a class="btn btn-sm btn-outline-primary" asp-action="Detail" asp-route-id="@s.SessionID">查看</a>
+                                            <form asp-action="Complete" method="post" class="d-inline"
+                                                  onsubmit="return confirm('確定要結束這場訓練嗎？');">
+                                                @Html.AntiForgeryToken()
+                                                <input type="hidden" name="id" value="@s.SessionID" />
+                                                <button type="submit" class="btn btn-sm btn-danger">結束訓練</button>
+                                            </form>
+                                        </div>
+                                    }
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+
+                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
+                    <div class="text-muted small">每頁 @pageSize 筆</div>
+                    <div class="d-flex align-items-center gap-2">
+                        <a class="btn btn-outline-secondary btn-sm @(IsPrevDisabled(currentPage) ? "disabled" : string.Empty)"
+                           href="@(IsPrevDisabled(currentPage) ? "#" : BuildPageUrl(currentPage - 1))">上一頁</a>
+                        <a class="btn btn-outline-secondary btn-sm @(IsNextDisabled(currentPage, totalPages) ? "disabled" : string.Empty)"
+                           href="@(IsNextDisabled(currentPage, totalPages) ? "#" : BuildPageUrl(currentPage + 1))">下一頁</a>
+                    </div>
+                </div>
+            }
+        </section>
     </div>
-}
-else
-{
-    <div class="text-muted">沒有符合條件的紀錄。</div>
-}
+</div>
 
 @section Scripts {
     @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
 }
+

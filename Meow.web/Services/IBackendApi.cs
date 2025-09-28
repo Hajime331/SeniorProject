@@ -1,4 +1,4 @@
-﻿using Meow.Shared.Dtos.Accounts;
+using Meow.Shared.Dtos.Accounts;
 using Meow.Shared.Dtos.Analytics;
 using Meow.Shared.Dtos.Common;
 using Meow.Shared.Dtos.Tags;
@@ -6,6 +6,7 @@ using Meow.Shared.Dtos.TrainingSessions;
 using Meow.Shared.Dtos.TrainingSets;
 using Meow.Shared.Dtos.Videos;
 using Meow.Web.Models;
+using Microsoft.AspNetCore.Http;
 using static Meow.Web.Services.BackendApi;
 
 namespace Meow.Web.Services
@@ -110,6 +111,7 @@ namespace Meow.Web.Services
 
         // 設定指定會員的頭像
         Task UpdateMemberAvatarAsync(Guid memberId, Guid avatarId);
+        Task<string?> UploadMemberAvatarAsync(Guid memberId, IFormFile file);
 
         // 供「會員訓練紀錄頁」使用 - 進階版
         Task<PagedResultDto<TrainingSessionListItemDto>> GetTrainingSessionsAsync(
@@ -182,3 +184,9 @@ namespace Meow.Web.Services
 
     }
 }
+
+
+
+
+
+

@@ -1,4 +1,4 @@
-﻿@model Meow.Web.ViewModels.TrainingSets.TrainingSetIndexVm
+@model Meow.Web.ViewModels.TrainingSets.TrainingSetIndexVm
 @{
     ViewData["Title"] = "課表列表";
     string minutesText(int? sec) => sec.HasValue ? $"{Math.Round(sec.Value / 60.0)} 分" : "—";
@@ -116,7 +116,14 @@
                                             <text>　時間：@Math.Round(set.EstimatedDurationSec.Value / 60.0) 分</text>
                                         }
                                     </p>
-                                    <a asp-action="Details" asp-route-id="@set.SetId" class="btn btn-sm btn-outline-primary">查看</a>
+                                    <div class="d-flex flex-wrap gap-2 mt-3">
+                                        <a asp-action="Details" asp-route-id="@set.SetId" class="btn btn-sm btn-outline-primary">查看</a>
+                                        <form asp-action="Start" method="post" class="d-inline">
+                                            @Html.AntiForgeryToken()
+                                            <input type="hidden" name="id" value="@set.SetId" />
+                                            <button type="submit" class="btn btn-sm btn-primary">開始訓練</button>
+                                        </form>
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -143,3 +150,5 @@
       }
     });
 </script>
+
+

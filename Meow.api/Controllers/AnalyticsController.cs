@@ -1,4 +1,4 @@
-﻿using Meow.Api.Data;
+using Meow.Api.Data;
 using Meow.Shared.Dtos.Analytics;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -27,35 +27,34 @@ public class AnalyticsController : ControllerBase
         return (weekStart, weekEnd);
     }
 
-    private static (DateTime startUtc, DateTime endUtc) GetWeekRangeByTaipei(DateTime? startLocalDate)
+    private static TimeZoneInfo GetTaipeiTimeZone()
     {
-        // 兼容 Windows / Linux 的時區 ID
-        TimeZoneInfo tz;
         try
         {
-            tz = TimeZoneInfo.FindSystemTimeZoneById("Taipei Standard Time"); // Windows
+            return TimeZoneInfo.FindSystemTimeZoneById("Taipei Standard Time");
         }
         catch
         {
-            tz = TimeZoneInfo.FindSystemTimeZoneById("Asia/Taipei"); // Linux/macOS
+            return TimeZoneInfo.FindSystemTimeZoneById("Asia/Taipei");
         }
+    }
 
-        // 基準日：參數（僅取日期部分）或 台北今天的日期
+    private static (DateTime startUtc, DateTime endUtc) GetWeekRangeByTaipei(DateTime? startLocalDate)
+    {
+        var tz = GetTaipeiTimeZone();
+
         DateTime taipeiToday = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, tz).Date;
         DateTime baseLocal = (startLocalDate?.Date ?? taipeiToday);
 
-        // 週一為週首：把 DayOfWeek 映射為 Monday=0
         int delta = ((int)baseLocal.DayOfWeek + 6) % 7; // Monday=0, Tuesday=1, ..., Sunday=6
-        DateTime weekStartLocal = baseLocal.AddDays(-delta);           // 當地 週一 00:00
-        DateTime weekEndLocal = weekStartLocal.AddDays(7);           // 當地 下週一 00:00
+        DateTime weekStartLocal = baseLocal.AddDays(-delta);
+        DateTime weekEndLocal = weekStartLocal.AddDays(7);
 
-        // 轉回 UTC（交給 SQL 篩選）
         DateTime weekStartUtc = TimeZoneInfo.ConvertTimeToUtc(weekStartLocal, tz);
         DateTime weekEndUtc = TimeZoneInfo.ConvertTimeToUtc(weekEndLocal, tz);
 
         return (weekStartUtc, weekEndUtc);
     }
-
     // ============ Admin：本週彙總 + Top 活躍會員 ============
     // GET /api/Analytics/admin/weekly?start=2025-09-08&take=5
     [HttpGet("admin/weekly")]
@@ -109,28 +108,60 @@ public class AnalyticsController : ControllerBase
     {
         if (memberId == Guid.Empty) return BadRequest("memberId is required.");
 
-        var (startUtc, endUtc) = GetWeekRangeUtc(start);
+        var (startUtc, endUtc) = GetWeekRangeByTaipei(start);
+        var tz = GetTaipeiTimeZone();
 
-        var q = _db.TrainingSessions.AsNoTracking()
+        var query = _db.TrainingSessions.AsNoTracking()
             .Where(s => s.MemberID == memberId
                         && s.CompletedFlag && s.EndedAt != null
                         && s.StartedAt >= startUtc && s.StartedAt < endUtc);
 
-        var sessions = await q.CountAsync();
-        var minutes = await q.SumAsync(s =>
-            EF.Functions.DateDiffMinute(s.StartedAt, s.EndedAt!.Value));
-        var points = await q.SumAsync(s => s.PointsAwarded ?? 0);
+        var raw = await query
+            .Select(s => new
+            {
+                s.StartedAt,
+                s.EndedAt,
+                s.PointsAwarded
+            })
+            .ToListAsync();
 
-        // 每日分佈（以 UTC 日期切日；若你要台北時區，之後可在資料層做轉換）
-        var daily = await q
-            .GroupBy(s => new { d = DateOnly.FromDateTime(s.StartedAt) })
+        static DateTime EnsureUtc(DateTime dt)
+            => dt.Kind == DateTimeKind.Utc ? dt : DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+
+        var normalized = raw.Select(r => new
+        {
+            StartUtc = EnsureUtc(r.StartedAt),
+            EndUtc = r.EndedAt.HasValue ? EnsureUtc(r.EndedAt.Value) : (DateTime?)null,
+            Points = r.PointsAwarded ?? 0
+        }).ToList();
+
+        int sessions = normalized.Count;
+        int minutes = normalized.Sum(r =>
+        {
+            var end = r.EndUtc ?? r.StartUtc;
+            var diff = end - r.StartUtc;
+            return diff.TotalMinutes < 0 ? 0 : (int)diff.TotalMinutes;
+        });
+        int points = normalized.Sum(r => r.Points);
+
+        var daily = normalized
+            .GroupBy(r =>
+            {
+                var local = TimeZoneInfo.ConvertTimeFromUtc(r.StartUtc, tz);
+                return DateOnly.FromDateTime(local);
+            })
             .Select(g => new DailyMinutesPointDto
             {
-                Date = g.Key.d,
-                Minutes = g.Sum(s => EF.Functions.DateDiffMinute(s.StartedAt, s.EndedAt!.Value))
+                Date = g.Key,
+                Minutes = g.Sum(r =>
+                {
+                    var end = r.EndUtc ?? r.StartUtc;
+                    var diff = end - r.StartUtc;
+                    return diff.TotalMinutes < 0 ? 0 : (int)diff.TotalMinutes;
+                })
             })
             .OrderBy(x => x.Date)
-            .ToListAsync();
+            .ToList();
 
         return Ok(new MemberWeeklySummaryDto
         {
@@ -261,3 +292,4 @@ public class AnalyticsController : ControllerBase
         });
     }
 }
+

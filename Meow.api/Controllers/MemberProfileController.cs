@@ -1,7 +1,11 @@
-﻿using Meow.Api.Data;
+using Meow.Api.Data;
 using Meow.Shared.Dtos.Accounts;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.IO;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace Meow.Api.Controllers;
 
@@ -16,11 +20,35 @@ public class MemberProfileController : ControllerBase
         _db = db;
     }
 
+    private static string GetAvatarUploadDirectory()
+        => Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "avatars");
+
+    private void DeleteCustomAvatarFiles(Guid memberId)
+    {
+        var dir = GetAvatarUploadDirectory();
+        if (!Directory.Exists(dir)) return;
+        foreach (var path in Directory.EnumerateFiles(dir, $"{memberId}.*"))
+        {
+            try { System.IO.File.Delete(path); } catch { }
+        }
+    }
+
+    private string? TryGetCustomAvatarUrl(Guid memberId)
+    {
+        var dir = GetAvatarUploadDirectory();
+        if (!Directory.Exists(dir)) return null;
+        var path = Directory.EnumerateFiles(dir, $"{memberId}.*").FirstOrDefault();
+        if (path == null) return null;
+
+        var fileName = Path.GetFileName(path);
+        var version = System.IO.File.GetLastWriteTimeUtc(path).Ticks;
+        return $"{Request.Scheme}://{Request.Host}/uploads/avatars/{fileName}?v={version}";
+    }
+
     // GET /api/Members/{memberId}/profile
     [HttpGet("profile")]
     public async Task<ActionResult<MemberProfileDto>> GetProfile(Guid memberId)
     {
-        // 確認會員存在
         var exists = await _db.Members.AsNoTracking().AnyAsync(m => m.MemberID == memberId);
         if (!exists) return NotFound("Member not found.");
 
@@ -39,8 +67,17 @@ public class MemberProfileController : ControllerBase
             })
             .FirstOrDefaultAsync();
 
-        // 若尚未建立資料，回傳空白 DTO
         profile ??= new MemberProfileDto { MemberID = memberId };
+
+        if (string.IsNullOrWhiteSpace(profile.AvatarUrl))
+        {
+            var customUrl = TryGetCustomAvatarUrl(memberId);
+            if (!string.IsNullOrWhiteSpace(customUrl))
+            {
+                profile.AvatarUrl = customUrl;
+            }
+        }
+
         return Ok(profile);
     }
 
@@ -77,12 +114,10 @@ public class MemberProfileController : ControllerBase
     [HttpPut("avatar/{avatarId:guid}")]
     public async Task<IActionResult> UpdateAvatar(Guid memberId, Guid avatarId)
     {
-        // 驗證會員是否存在
         var memberExists = await _db.Members.AsNoTracking()
             .AnyAsync(m => m.MemberID == memberId);
         if (!memberExists) return NotFound("Member not found.");
 
-        // 驗證頭像存在且為啟用狀態
         var avatar = await _db.AvatarCatalogs.AsNoTracking()
             .FirstOrDefaultAsync(a => a.AvatarID == avatarId && a.Status == "Active");
         if (avatar == null) return NotFound("Avatar not found.");
@@ -104,7 +139,72 @@ public class MemberProfileController : ControllerBase
             profile.AvatarUpdatedAt = DateTime.UtcNow;
         }
 
+        DeleteCustomAvatarFiles(memberId);
+
         await _db.SaveChangesAsync();
         return NoContent();
+    }
+
+    [HttpPost("avatar/upload")]
+    public async Task<IActionResult> UploadAvatar(Guid memberId, IFormFile file)
+    {
+        if (file == null || file.Length == 0) return BadRequest("No file.");
+
+        var memberExists = await _db.Members.AsNoTracking()
+            .AnyAsync(m => m.MemberID == memberId);
+        if (!memberExists) return NotFound("Member not found.");
+
+        var allowed = new Dictionary<string, string>
+        {
+            ["image/png"] = ".png",
+            ["image/jpeg"] = ".jpg",
+            ["image/webp"] = ".webp"
+        };
+
+        var contentType = file.ContentType?.ToLowerInvariant();
+        if (!allowed.TryGetValue(contentType ?? string.Empty, out var ext))
+        {
+            ext = Path.GetExtension(file.FileName).ToLowerInvariant();
+            if (ext == ".jpeg") ext = ".jpg";
+            if (ext != ".png" && ext != ".jpg" && ext != ".webp")
+                return BadRequest("Unsupported image type.");
+        }
+
+        if (file.Length > 5 * 1024 * 1024) return BadRequest("Max 5MB.");
+
+        var uploads = GetAvatarUploadDirectory();
+        Directory.CreateDirectory(uploads);
+
+        DeleteCustomAvatarFiles(memberId);
+
+        var fileName = $"{memberId}{ext}";
+        var destination = Path.Combine(uploads, fileName);
+        using (var stream = new FileStream(destination, FileMode.Create, FileAccess.Write, FileShare.None))
+        {
+            await file.CopyToAsync(stream);
+        }
+
+        var now = DateTime.UtcNow;
+        var profile = await _db.MemberProfiles.SingleOrDefaultAsync(p => p.MemberID == memberId);
+        if (profile == null)
+        {
+            profile = new MemberProfile
+            {
+                MemberID = memberId,
+                AvatarID = null,
+                AvatarUpdatedAt = now
+            };
+            _db.MemberProfiles.Add(profile);
+        }
+        else
+        {
+            profile.AvatarID = null;
+            profile.AvatarUpdatedAt = now;
+        }
+
+        await _db.SaveChangesAsync();
+
+        var avatarUrl = $"{Request.Scheme}://{Request.Host}/uploads/avatars/{fileName}?v={now.Ticks}";
+        return Ok(new { avatarUrl });
     }
 }

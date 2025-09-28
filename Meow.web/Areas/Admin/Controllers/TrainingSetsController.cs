@@ -1,8 +1,11 @@
-﻿using Meow.Shared.Dtos.TrainingSets;
+using Meow.Shared.Dtos.TrainingSets;
+using Meow.Shared.Dtos.Videos;
 using Meow.Web.Services;
 using Meow.Web.ViewModels.TrainingSets;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http.Json;
 
 namespace Meow.Web.Areas.Admin.Controllers
@@ -21,43 +24,44 @@ namespace Meow.Web.Areas.Admin.Controllers
             string? difficulty,
             Guid? tagId)
         {
-            // 1) 呼叫 API 取清單
             var sets = await _api.GetTrainingSetsAsync(
                 keyword,
                 string.IsNullOrWhiteSpace(status) ? "Active" : status,
                 difficulty,
-                tagId
-            );
+                tagId);
 
-            // 2) 取篩選用資料（Tag / 難度清單）
             var tags = await _api.GetTagsAsync();
-            var difficulties = new List<string> { "初階", "中階", "高階" }; // 依你實際枚舉調整
+            var difficulties = new List<string> { "初階", "中階", "進階" };
 
-            // 3) 包成 VM
             var vm = new TrainingSetIndexVm
             {
                 Keyword = keyword,
                 Difficulty = difficulty,
                 TagId = tagId,
-
                 AllTags = tags,
                 AllDifficulties = difficulties,
-
                 Sets = sets
             };
 
-            // 4) 回傳 VM（不要直接回 List）
             return View(vm);
         }
 
         // GET: Admin/TrainingSets/Create
         public async Task<IActionResult> Create()
         {
-            // 若你的 View 需要 Tag/Video 下拉，這裡先載入
             ViewBag.AllTags = await _api.GetTagsAsync();
-            // 避免多載模稜兩可：第三參數指定 (string?)null
-            ViewBag.AllVideos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
-            return View(new TrainingSetEditViewModel());
+            var videos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
+            ViewBag.AllVideos = videos;
+
+            var vm = new TrainingSetEditViewModel
+            {
+                Items = new List<TrainingSetItemEditViewModel>
+                {
+                    new TrainingSetItemEditViewModel { OrderNo = 1 }
+                }
+            };
+            PopulateVideoTitles(vm.Items, videos);
+            return View(vm);
         }
 
         // POST: Admin/TrainingSets/Create
@@ -65,56 +69,46 @@ namespace Meow.Web.Areas.Admin.Controllers
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create(TrainingSetEditViewModel vm)
         {
-            // 基本驗證
             if (string.IsNullOrWhiteSpace(vm.Name))
                 ModelState.AddModelError(nameof(vm.Name), "請輸入課表名稱。");
             if (vm.Items == null || vm.Items.Count == 0)
-                ModelState.AddModelError("", "至少需要一筆課表項目。");
+                ModelState.AddModelError(string.Empty, "至少需要一個訓練項目。");
 
             if (!ModelState.IsValid)
             {
-                // 回傳 View 前，把下拉/多選資料補齊
-                ViewBag.AllTags = await _api.GetTagsAsync();
-                // 若 View 會用到影片清單（自動完成等），也可提前載入
-                ViewBag.AllVideos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
+                await ReloadCreateEditLookups(vm);
                 return View(vm);
             }
 
-            // 建立 Items DTO
             var itemDtos = (vm.Items ?? new List<TrainingSetItemEditViewModel>())
-                .Select(i => new TrainingSetItemCreateDto(
+                .Select((i, idx) => new TrainingSetItemCreateDto(
                     i.VideoId,
-                    i.OrderNo,
+                    i.OrderNo > 0 ? i.OrderNo : idx + 1,
                     i.TargetReps,
                     i.RestSec,
-                    i.Rounds
-                ))
+                    i.Rounds))
                 .ToList();
 
-            // 建立 Create DTO（CoverUrl 先 null；上傳走獨立端點）
             var createDto = new TrainingSetCreateDto(
-                vm.Name!.Trim(),
-                vm.BodyPart ?? "全身",
-                vm.Equipment ?? "無器材",
+                vm.Name.Trim(),
+                vm.BodyPart ?? "未指定",
+                vm.Equipment ?? "無",
                 vm.Difficulty,
                 vm.EstimatedDurationSec,
                 vm.TagIds ?? new List<Guid>(),
                 itemDtos,
-                null
-            );
+                null);
 
             try
             {
-                // 建立成功會回傳 detail（內有 SetID）
                 var created = await _api.CreateTrainingSetAsync(createDto);
 
-                // 若有上傳封面 → 呼叫上傳端點
                 if (vm.CoverFile is not null && vm.CoverFile.Length > 0)
                 {
                     try
                     {
                         await _api.UploadTrainingSetCoverAsync(created.SetID, vm.CoverFile);
-                        TempData["Ok"] = "已建立課表並上傳封面。";
+                        TempData["Ok"] = "課表已建立，封面上傳完成。";
                     }
                     catch (Exception ex)
                     {
@@ -123,30 +117,24 @@ namespace Meow.Web.Areas.Admin.Controllers
                 }
                 else
                 {
-                    TempData["Ok"] = "已建立課表。";
+                    TempData["Ok"] = "課表已建立。";
                 }
 
-                // ✅ 依你的需求：成功後跳轉到編輯頁
                 return RedirectToAction(nameof(Edit), new { id = created.SetID });
             }
             catch (ApplicationException ex)
             {
-                // API 回來的可讀錯誤
-                ModelState.AddModelError("", ex.Message);
-                ViewBag.AllTags = await _api.GetTagsAsync();
-                ViewBag.AllVideos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
+                ModelState.AddModelError(string.Empty, ex.Message);
+                await ReloadCreateEditLookups(vm);
                 return View(vm);
             }
             catch (Exception ex)
             {
-                ModelState.AddModelError("", "建立失敗：" + ex.Message);
-                ViewBag.AllTags = await _api.GetTagsAsync();
-                ViewBag.AllVideos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
+                ModelState.AddModelError(string.Empty, "新增失敗：" + ex.Message);
+                await ReloadCreateEditLookups(vm);
                 return View(vm);
             }
         }
-
-
 
         // GET: Admin/TrainingSets/Edit/{id}
         public async Task<IActionResult> Edit(Guid id)
@@ -154,17 +142,17 @@ namespace Meow.Web.Areas.Admin.Controllers
             var dto = await _api.GetTrainingSetAsync(id);
             if (dto is null) return NotFound();
 
-            var detail = await _api.GetTrainingSetAsync(id);
+            var videos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
             var vm = new TrainingSetEditViewModel
             {
-                SetId = detail.SetID,
-                Name = detail.Name,
-                BodyPart = detail.BodyPart,
-                Equipment = detail.Equipment,
-                Difficulty = detail.Difficulty,
-                EstimatedDurationSec = detail.EstimatedDurationSec,
-                TagIds = detail.TagIds?.ToList() ?? new(),
-                CoverUrl = detail.CoverUrl,
+                SetId = dto.SetID,
+                Name = dto.Name,
+                BodyPart = dto.BodyPart ?? string.Empty,
+                Equipment = dto.Equipment ?? string.Empty,
+                Difficulty = dto.Difficulty,
+                EstimatedDurationSec = dto.EstimatedDurationSec,
+                TagIds = dto.TagIds?.ToList() ?? new List<Guid>(),
+                CoverUrl = dto.CoverUrl,
                 Items = dto.Items.Select(x => new TrainingSetItemEditViewModel
                 {
                     SetItemId = x.SetItemId,
@@ -172,11 +160,16 @@ namespace Meow.Web.Areas.Admin.Controllers
                     OrderNo = x.OrderNo,
                     TargetReps = x.TargetReps,
                     RestSec = x.RestSec,
-                    Rounds = x.Rounds
+                    Rounds = x.Rounds,
+                    VideoTitle = videos.FirstOrDefault(v => v.VideoId == x.VideoId)?.Title ?? string.Empty
                 }).ToList()
             };
 
+            if (vm.Items.Count == 0)
+                vm.Items.Add(new TrainingSetItemEditViewModel { OrderNo = 1 });
+
             ViewBag.AllTags = await _api.GetTagsAsync();
+            ViewBag.AllVideos = videos;
             return View(vm);
         }
 
@@ -186,23 +179,22 @@ namespace Meow.Web.Areas.Admin.Controllers
         public async Task<IActionResult> Edit(TrainingSetEditViewModel vm)
         {
             if (vm.SetId is null || vm.SetId == Guid.Empty)
-                ModelState.AddModelError("", "缺少 SetId。");
+                ModelState.AddModelError(string.Empty, "缺少課表識別碼。");
             if (vm.Items == null || vm.Items.Count == 0)
-                ModelState.AddModelError("", "至少需要一筆課表項目。");
+                ModelState.AddModelError(string.Empty, "至少需要一個訓練項目。");
 
             if (!ModelState.IsValid)
             {
-                ViewBag.AllTags = await _api.GetTagsAsync();
+                await ReloadCreateEditLookups(vm);
                 return View(vm);
             }
 
-            // Items → Update DTO（TrainingSetItemUpdateDto 是屬性型，請用物件初始化器）
             var items = (vm.Items ?? new List<TrainingSetItemEditViewModel>())
-                .Select(i => new TrainingSetItemUpdateDto
+                .Select((i, idx) => new TrainingSetItemUpdateDto
                 {
                     SetItemId = i.SetItemId,
                     VideoId = i.VideoId,
-                    OrderNo = i.OrderNo,
+                    OrderNo = i.OrderNo > 0 ? i.OrderNo : idx + 1,
                     TargetReps = i.TargetReps,
                     RestSec = i.RestSec,
                     Rounds = i.Rounds
@@ -211,27 +203,25 @@ namespace Meow.Web.Areas.Admin.Controllers
 
             var dto = new TrainingSetUpdateDto(
                 vm.SetId!.Value,
-                vm.Name?.Trim() ?? "",
-                vm.BodyPart ?? "全身",
-                vm.Equipment ?? "無器材",
+                vm.Name?.Trim() ?? string.Empty,
+                vm.BodyPart ?? "未指定",
+                vm.Equipment ?? "無",
                 vm.Difficulty,
                 vm.EstimatedDurationSec,
                 vm.TagIds ?? new List<Guid>(),
                 items,
-                null // CoverUrl 交由上傳端點處理
-            );
+                null);
 
             try
             {
                 await _api.UpdateTrainingSetAsync(vm.SetId.Value, dto);
 
-                // 有選檔案 → 呼叫上傳端點
                 if (vm.CoverFile is not null && vm.CoverFile.Length > 0)
                 {
                     try
                     {
                         var url = await _api.UploadTrainingSetCoverAsync(vm.SetId.Value, vm.CoverFile);
-                        TempData["Ok"] = url is not null ? "封面已上傳並更新。" : "封面已上傳。";
+                        TempData["Ok"] = url is not null ? "封面已更新。" : "封面上傳完成。";
                     }
                     catch (Exception ex)
                     {
@@ -243,13 +233,12 @@ namespace Meow.Web.Areas.Admin.Controllers
                     TempData["Ok"] = "課表內容已更新。";
                 }
 
-                // 重新導回 Edit（PRG 模式，避免重送表單），會在頁面顯示訊息與最新縮圖
                 return RedirectToAction(nameof(Edit), new { id = vm.SetId.Value });
             }
             catch (ApplicationException ex)
             {
-                ModelState.AddModelError("", ex.Message);
-                ViewBag.AllTags = await _api.GetTagsAsync();
+                ModelState.AddModelError(string.Empty, ex.Message);
+                await ReloadCreateEditLookups(vm);
                 return View(vm);
             }
         }
@@ -282,7 +271,7 @@ namespace Meow.Web.Areas.Admin.Controllers
                 {
                     SetItemId = i.SetItemId,
                     VideoId = i.VideoId,
-                    VideoTitle = videos.FirstOrDefault(v => v.VideoId == i.VideoId)?.Title ?? "(未知影片)",
+                    VideoTitle = videos.FirstOrDefault(v => v.VideoId == i.VideoId)?.Title ?? "(找不到影片)",
                     OrderNo = i.OrderNo,
                     TargetReps = i.TargetReps,
                     RestSec = i.RestSec,
@@ -293,8 +282,6 @@ namespace Meow.Web.Areas.Admin.Controllers
             return View(vm);
         }
 
-
-
         // POST: Admin/TrainingSets/Delete/{id}
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -304,7 +291,7 @@ namespace Meow.Web.Areas.Admin.Controllers
             try
             {
                 await _api.DeleteTrainingSetAsync(id);
-                TempData["Ok"] = "已刪除課表。";
+                TempData["Ok"] = "課表已刪除。";
             }
             catch (ApplicationException ex)
             {
@@ -313,19 +300,44 @@ namespace Meow.Web.Areas.Admin.Controllers
             return RedirectToAction(nameof(Index));
         }
 
-
         [HttpGet]
         public async Task<IActionResult> SearchVideos(string? q)
         {
             var list = await _api.GetTrainingVideosAsync(q, "Published", (string?)null);
             var result = list.Select(v => new {
-                videoId = v.VideoId,     // 依你的 DTO 實際屬性命名調整
+                videoId = v.VideoId,
                 title = v.Title,
                 durationSec = v.DurationSec
             });
             return Json(result);
         }
 
-    }
+        private async Task ReloadCreateEditLookups(TrainingSetEditViewModel vm)
+        {
+            vm.Items ??= new List<TrainingSetItemEditViewModel>();
+            if (vm.Items.Count == 0)
+                vm.Items.Add(new TrainingSetItemEditViewModel { OrderNo = 1 });
 
+            ViewBag.AllTags = await _api.GetTagsAsync();
+            var videos = await _api.GetTrainingVideosAsync(null, "Published", (string?)null);
+            ViewBag.AllVideos = videos;
+            PopulateVideoTitles(vm.Items, videos);
+        }
+
+        private static void PopulateVideoTitles(IEnumerable<TrainingSetItemEditViewModel>? items, IEnumerable<TrainingVideoListItemDto>? videos)
+        {
+            if (items == null || videos == null) return;
+            var lookup = videos.GroupBy(v => v.VideoId)
+                               .ToDictionary(g => g.Key, g => g.First().Title ?? string.Empty);
+
+            foreach (var item in items)
+            {
+                if (item.VideoId != Guid.Empty && lookup.TryGetValue(item.VideoId, out var title))
+                {
+                    item.VideoTitle = title;
+                }
+            }
+        }
+    }
 }
+
