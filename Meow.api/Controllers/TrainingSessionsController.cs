@@ -245,21 +245,23 @@ public class TrainingSessionsController : ControllerBase
 
         if (session is null) return NotFound();
 
+        // 1) 決定結束時間（預設用現在 UTC；也可用 dto.EndedAt）
         var ended = (dto?.EndedAt ?? DateTime.UtcNow);
-        if (ended < session.StartedAt) ended = session.StartedAt;
+        if (ended < session.StartedAt) ended = session.StartedAt; // 防守：避免倒退
 
+        // 2) 寫入狀態
         session.EndedAt = ended;
         session.CompletedFlag = dto?.CompletedFlag ?? true;
         session.CaloriesBurned = dto?.CaloriesBurned;
         session.PointsAwarded = dto?.PointsAwarded;
 
+        // 只有在真的有填 Notes 時，才會把它寫進 session.Notes
         if (!string.IsNullOrWhiteSpace(dto?.Notes))
-        {
-            session.Notes = dto!.Notes;
-        }
+            session.Notes = dto!.Notes; // 若你希望保留舊 notes 就改成追加
 
         await _db.SaveChangesAsync();
 
+        // 3) 回傳最新明細（沿用你現有的投影邏輯）
         return await GetById(id);
     }
 

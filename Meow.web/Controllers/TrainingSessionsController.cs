@@ -1,4 +1,5 @@
 ﻿using Meow.Shared.Dtos.TrainingSessions;
+using Meow.Shared.Dtos.TrainingSets;
 using Meow.Web.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,13 +16,22 @@ public class TrainingSessionsController : Controller
     }
 
 
-    // 單一版本：支援 tagIds（名稱或 Guid 的字串清單）
-    // GET /TrainingSessions?from=...&to=...&page=1&pageSize=20&tagIds=胸部&tagIds=拉伸
+
+    // GET /TrainingSessions?from=...&to=...&tagId=...
     [HttpGet]
-    public async Task<IActionResult> Index(DateTime? from, DateTime? to, List<string>? tagIds, int page = 1, int pageSize = 20)
+    public async Task<IActionResult> Index(DateTime? from, DateTime? to, string? tagId, int page = 1, int pageSize = 20)
     {
         var idStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(idStr, out var memberId)) return Forbid();
+
+        // 單選：把字串安全轉 Guid?
+        Guid? tagGuid = null;
+        if (!string.IsNullOrWhiteSpace(tagId) && Guid.TryParse(tagId, out var g))
+            tagGuid = g;
+
+        // 組合 API 需要的 tagIds（字串清單）。若未選擇就傳空清單。
+        var selectedTagIds = new List<string>();
+        if (tagGuid.HasValue) selectedTagIds.Add(tagGuid.Value.ToString());
 
         var tags = await _api.GetTagsAsync();
 
@@ -29,11 +39,11 @@ public class TrainingSessionsController : Controller
         {
             From = from,
             To = to,
-            SelectedTagIds = (tagIds ?? new List<string>()).Where(s => !string.IsNullOrWhiteSpace(s)).ToList(),
-            AllTags = tags.Select(t => (t.TagId, t.Name, (string?)null)).ToList()
+            TagId = tagGuid, // 供下拉預選用
+            AllTags = tags.Select(t => (t.TagId, t.Name, t.Category)).ToList()
         };
 
-        vm.Result = await _api.GetTrainingSessionsAsync(memberId, from, to, page, pageSize, vm.SelectedTagIds);
+        vm.Result = await _api.GetTrainingSessionsAsync(memberId, from, to, page, pageSize, selectedTagIds);
 
         return View(vm);
     }
@@ -42,24 +52,52 @@ public class TrainingSessionsController : Controller
     // POST /TrainingSessions/Start?setId=...
     [HttpPost]
     [ValidateAntiForgeryToken]
-    public async Task<IActionResult> Start(Guid setId, string? note)
+    public async Task<IActionResult> Start(string? setId, string? note)
     {
         var idStr = User.FindFirstValue(ClaimTypes.NameIdentifier);
         if (!Guid.TryParse(idStr, out var memberId)) return Forbid();
-        if (setId == Guid.Empty) return BadRequest();
+
+        if (!Guid.TryParse(setId, out var setGuid) || setGuid == Guid.Empty)
+            return BadRequest("setId is required");
 
         var dto = new TrainingSessionCreateDto
         {
-            SetID = setId,
+            SetID = setGuid,
             Notes = note
         };
 
         var created = await _api.StartTrainingSessionAsync(memberId, dto);
-
         TempData["Success"] = "已開始一場新的訓練。";
-        // 你之後會實作 Detail 頁；先導向 Detail，比較符合「開始後立即操作」
-        return RedirectToAction(nameof(Detail), new { id = created.SessionID });
+        return RedirectToAction(nameof(InProgress), new { id = created.SessionID });
     }
+
+
+    // GET /TrainingSessions/InProgress/{id}
+    [HttpGet]
+    public async Task<IActionResult> InProgress(Guid id)
+    {
+        if (id == Guid.Empty)
+        {
+            TempData["Error"] = "缺少必要的參數：id。";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // 取 Session 明細
+        var session = await _api.GetTrainingSessionAsync(id);
+        if (session == null)
+        {
+            TempData["Error"] = "找不到這筆訓練紀錄。";
+            return RedirectToAction(nameof(Index));
+        }
+
+        // 取封面（可選：為了讓版面像 TrainingSets/Details）
+        TrainingSetDetailDto? set = null;
+        try { set = await _api.GetTrainingSetAsync(session.SetID); } catch { /* ignore */ }
+
+        ViewBag.SetCoverUrl = set?.CoverUrl;
+        return View(session); // View 使用 TrainingSessionDetailDto
+    }
+
 
 
     // GET /TrainingSessions/Detail/{id}   

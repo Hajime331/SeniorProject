@@ -1,0 +1,47 @@
+﻿@model Meow.Shared.Dtos.TrainingSessions.TrainingSessionDetailDto
+@{
+    ViewData["Title"] = "訓練中";
+    var cover = ViewBag.SetCoverUrl as string;
+}
+
+<div class="container py-3">
+    <div class="card shadow-sm">
+
+        <!-- Header 區：標題 + 開始時間 + 結束按鈕 -->
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <div>
+                <h4 class="mb-0">@Model.SetName</h4>
+                <small class="text-muted">開始時間：@Model.StartedAt.ToLocalTime()</small>
+            </div>
+            <form asp-action="Complete" asp-controller="TrainingSessions" method="post" class="ms-auto">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="id" value="@Model.SessionID" />
+                <button type="submit" class="btn btn-danger">結束訓練</button>
+            </form>
+        </div>
+
+        <!-- 封面圖 -->
+        @if (!string.IsNullOrWhiteSpace(cover))
+        {
+            <div style="height:220px;
+                            background:#f2f3f5 url('@cover') center/cover no-repeat;
+                            border-top-left-radius:.5rem;
+                            border-top-right-radius:.5rem;">
+            </div>
+        }
+
+        <!-- 訓練步驟清單 -->
+        <div class="card-body">
+            <h5 class="mb-3">訓練步驟</h5>
+
+            <ol class="list-group list-group-numbered">
+                @foreach (var it in Model.Items.OrderBy(x => x.OrderNo))
+                {
+                    <li class="list-group-item">
+                        <div class="fw-semibold">@it.VideoTitle</div>
+                    </li>
+                }
+            </ol>
+        </div>
+    </div>
+</div>

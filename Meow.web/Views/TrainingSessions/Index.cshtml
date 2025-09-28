@@ -1,25 +1,19 @@
 @model TrainingSessionIndexVm
 @{
-    ViewData["Title"] = "我的訓練紀錄";
+    ViewData["Title"] = "訓練紀錄";
 
-    bool hasResult = Model.Result is not null && Model.Result.Items.Any();
-    int totalCount = Model.Result?.TotalCount ?? 0;
-    int currentPage = Model.Result?.Page ?? 1;
-    int pageSize = Model.Result?.PageSize ?? 10;
-    int totalPages = Math.Max(1, (int)Math.Ceiling(totalCount / (double)pageSize));
+    string? FormatDate(DateTime? d) => d?.ToString("yyyy-MM-dd");
 
-    string? FormatDate(DateTime? dt) => dt?.ToString("yyyy-MM-dd");
+    int pageSize = Model.Result?.PageSize ?? 20;
+
     string BuildPageUrl(int targetPage) => Url.Action("Index", new
     {
         from = FormatDate(Model.From),
         to = FormatDate(Model.To),
         page = targetPage,
         pageSize,
-        tagIds = Model.SelectedTagIds
+        tagId = Model.TagId?.ToString()
     }) ?? "#";
-
-    bool IsPrevDisabled(int current) => current <= 1;
-    bool IsNextDisabled(int current, int pages) => current >= pages;
 }
 
 <div class="container my-4">
@@ -38,29 +32,17 @@
                             <input type="date" name="to" class="form-control" value="@FormatDate(Model.To)" />
                         </div>
                         <div>
-                            <div class="form-label mb-2">標籤（可複選）</div>
-                            <div class="border rounded p-2" style="max-height: 260px; overflow-y: auto;">
-                                <div class="row row-cols-1 g-2">
-                                    @foreach (var tag in Model.AllTags)
-                                    {
-                                        var (tagId, tagName, tagCategory) = tag;
-                                        bool isChecked = Model.SelectedTagIds.Contains(tagId.ToString())
-                                                         || Model.SelectedTagIds.Contains(tagName);
-                                        <div class="col">
-                                            <div class="form-check">
-                                                <input class="form-check-input" type="checkbox" name="tagIds" value="@tagId" id="tag_@tagId" @(isChecked ? "checked" : null) />
-                                                <label class="form-check-label" for="tag_@tagId">
-                                                    @tagName
-                                                    @if (!string.IsNullOrWhiteSpace(tagCategory))
-                                                    {
-                                                        <span class="text-muted small ms-1">(@tagCategory)</span>
-                                                    }
-                                                </label>
-                                            </div>
-                                        </div>
-                                    }
-                                </div>
-                            </div>
+                            <label class="form-label mb-1" for="tagId">標籤</label>
+                            <select id="tagId" name="tagId" class="form-select">
+                                <option value="">不限</option>
+                                @foreach (var tag in Model.AllTags)
+                                {
+                                    var selected = Model.TagId.HasValue && Model.TagId.Value == tag.TagID ? "selected" : null;
+                                    <option value="@tag.TagID" selected="@selected">@tag.Name</option>
+                                }
+                            </select>
+
+
                         </div>
                         <div class="d-grid gap-2">
                             <button type="submit" class="btn btn-primary">搜尋</button>
@@ -72,22 +54,22 @@
         </aside>
 
         <section class="col-12 col-lg-9">
-            <h2 class="mb-3">我的訓練紀錄</h2>
+            <h2 class="mb-3">訓練紀錄</h2>
 
-            @if (!hasResult)
+            @if (!(Model.Result?.Items?.Any() ?? false))
             {
                 <div class="alert alert-light border text-muted">目前沒有符合條件的訓練紀錄。</div>
             }
             else
             {
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                    <div class="text-muted">共 @totalCount 筆紀錄</div>
+                    <div class="text-muted">共 @Model.Result!.TotalCount 筆紀錄</div>
                     <div class="d-flex align-items-center gap-2">
-                        <a class="btn btn-outline-secondary btn-sm @(IsPrevDisabled(currentPage) ? "disabled" : string.Empty)"
-                           href="@(IsPrevDisabled(currentPage) ? "#" : BuildPageUrl(currentPage - 1))">上一頁</a>
-                        <span class="small text-nowrap">第 @currentPage / @totalPages 頁</span>
-                        <a class="btn btn-outline-secondary btn-sm @(IsNextDisabled(currentPage, totalPages) ? "disabled" : string.Empty)"
-                           href="@(IsNextDisabled(currentPage, totalPages) ? "#" : BuildPageUrl(currentPage + 1))">下一頁</a>
+                        <a class="btn btn-outline-secondary btn-sm @(Model.Result!.HasPreviousPage ? "" : "disabled")"
+                           href="@(Model.Result!.HasPreviousPage ? BuildPageUrl(Model.Result.PageIndex - 1) : "#")">上一頁</a>
+                        <span class="small text-nowrap">第 @Model.Result.PageIndex / @Model.Result.TotalPages 頁</span>
+                        <a class="btn btn-outline-secondary btn-sm @(Model.Result!.HasNextPage ? "" : "disabled")"
+                           href="@(Model.Result!.HasNextPage ? BuildPageUrl(Model.Result.PageIndex + 1) : "#")">下一頁</a>
                     </div>
                 </div>
 
@@ -119,7 +101,7 @@
                                 </div>
 
                                 <div class="text-md-end">
-                                    @if (s.CompletedFlag)
+                                    @if (s.CompletedFlag || s.EndedAt.HasValue)
                                     {
                                         <span class="badge text-bg-success">已完成</span>
                                         <div class="mt-2">
@@ -128,15 +110,8 @@
                                     }
                                     else
                                     {
-                                        <span class="badge text-bg-warning text-dark">進行中</span>
                                         <div class="mt-2 d-flex flex-wrap gap-2 justify-content-md-end">
-                                            <a class="btn btn-sm btn-outline-primary" asp-action="Detail" asp-route-id="@s.SessionID">查看</a>
-                                            <form asp-action="Complete" method="post" class="d-inline"
-                                                  onsubmit="return confirm('確定要結束這場訓練嗎？');">
-                                                @Html.AntiForgeryToken()
-                                                <input type="hidden" name="id" value="@s.SessionID" />
-                                                <button type="submit" class="btn btn-sm btn-danger">結束訓練</button>
-                                            </form>
+                                            <a class="btn btn-sm btn-outline-warning" asp-action="InProgress" asp-route-id="@s.SessionID">進行中</a>
                                         </div>
                                     }
                                 </div>
@@ -146,16 +121,17 @@
                 </div>
 
                 <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mt-3">
-                    <div class="text-muted small">每頁 @pageSize 筆</div>
+                    <div class="text-muted small">每頁 @Model.Result!.PageSize 筆</div>
                     <div class="d-flex align-items-center gap-2">
-                        <a class="btn btn-outline-secondary btn-sm @(IsPrevDisabled(currentPage) ? "disabled" : string.Empty)"
-                           href="@(IsPrevDisabled(currentPage) ? "#" : BuildPageUrl(currentPage - 1))">上一頁</a>
-                        <a class="btn btn-outline-secondary btn-sm @(IsNextDisabled(currentPage, totalPages) ? "disabled" : string.Empty)"
-                           href="@(IsNextDisabled(currentPage, totalPages) ? "#" : BuildPageUrl(currentPage + 1))">下一頁</a>
+                        <a class="btn btn-outline-secondary btn-sm @(Model.Result!.HasPreviousPage ? "" : "disabled")"
+                           href="@(Model.Result!.HasPreviousPage ? BuildPageUrl(Model.Result.PageIndex - 1) : "#")">上一頁</a>
+                        <a class="btn btn-outline-secondary btn-sm @(Model.Result!.HasNextPage ? "" : "disabled")"
+                           href="@(Model.Result!.HasNextPage ? BuildPageUrl(Model.Result.PageIndex + 1) : "#")">下一頁</a>
                     </div>
                 </div>
             }
         </section>
+
     </div>
 </div>
 

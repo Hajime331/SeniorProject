@@ -15,26 +15,27 @@ public class TrainingSetsController : Controller
 
     // GET /TrainingSets
     [HttpGet]
-    public async Task<IActionResult> Index(string? keyword, string? difficulty, Guid? tagId)
+    public async Task<IActionResult> Index(string? keyword, string? difficulty, string? tagId)
     {
-        var sets = await _api.GetTrainingSetsAsync(keyword, "Active", difficulty, tagId);
+        Guid? tagGuid = null;
+        if (!string.IsNullOrWhiteSpace(tagId) && Guid.TryParse(tagId, out var g))
+            tagGuid = g;
+
+        var sets = await _api.GetTrainingSetsAsync(keyword, "Active", difficulty, tagGuid);
         var allTags = await _api.GetTagsAsync();
 
         var vm = new TrainingSetIndexVm
         {
             Keyword = keyword ?? "",
             Status = "Active",
-            Difficulty = difficulty,               // ← 帶進 VM
-            TagId = tagId,
+            Difficulty = difficulty,
+            TagId = tagGuid,
             AllTags = allTags.ToList(),
-            AllDifficulties = new List<string> { "初階", "中階", "高階" }, // 若你已有來源可替換
+            AllDifficulties = new List<string> { "初階", "中階", "高階" },
             Sets = sets.ToList()
         };
         return View(vm);
     }
-
-
-
 
 
     [HttpPost]

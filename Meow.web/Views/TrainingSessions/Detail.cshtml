@@ -1,135 +1,101 @@
-﻿@using System.Globalization
-@using Meow.Shared.Dtos.TrainingSessions
-@model TrainingSessionDetailDto
-
+﻿@model Meow.Shared.Dtos.TrainingSessions.TrainingSessionDetailDto
 @{
     ViewData["Title"] = "訓練明細";
-    var isCompleted = Model.CompletedFlag || Model.EndedAt.HasValue;
-    string FormatUtc(DateTime dt) => dt.ToLocalTime().ToString("yyyy/MM/dd HH:mm", CultureInfo.InvariantCulture);
-    var minutes = Model.EndedAt.HasValue
-        ? Math.Max(0, (int)(Model.EndedAt.Value - Model.StartedAt).TotalMinutes)
-        : (int?)null;
+    var cover = ViewBag.SetCoverUrl as string;
 }
 
-<h2 class="mb-3">訓練明細</h2>
-
-<!-- 概要卡 -->
-<div class="card mb-3">
-    <div class="card-body">
-        <div class="d-flex flex-wrap align-items-center justify-content-between">
-            <div class="me-3">
-                <div class="fw-bold fs-5">@Model.SetName</div>
-                <div class="text-muted small">
-                    開始：@FormatUtc(Model.StartedAt)
-                    @if (Model.EndedAt.HasValue)
-                    {
-                        <span class="ms-3">結束：@FormatUtc(Model.EndedAt.Value)</span>
-                        <span class="ms-3">時長：@minutes 分</span>
-                    }
-                </div>
-                @if (!string.IsNullOrWhiteSpace(Model.Notes))
+<div class="container py-3">
+    <div class="card shadow-sm">
+        <div class="card-header d-flex align-items-center justify-content-between">
+            <div>
+                <h4 class="mb-0">@Model.SetName</h4>
+                <small class="text-muted">開始時間：@Model.StartedAt.ToLocalTime()</small>
+                @if (Model.EndedAt.HasValue)
                 {
-                    <div class="small mt-1">備註：@Model.Notes</div>
+                    <div><small class="text-success">完成時間：@Model.EndedAt.Value.ToLocalTime()</small></div>
                 }
             </div>
+            <a asp-action="Index" class="btn btn-outline-secondary">回列表</a>
+        </div>
 
-            <div class="text-end">
-                @if (isCompleted)
+        @if (!string.IsNullOrWhiteSpace(cover))
+        {
+            <div style="height:220px;background:#f2f3f5 url('@cover') center/cover no-repeat;
+                            border-top-left-radius:.5rem;border-top-right-radius:.5rem;"></div>
+        }
+
+        <div class="card-body">
+            <h5 class="mb-3">訓練步驟</h5>
+
+            <ol class="list-group list-group-numbered">
+                @foreach (var item in Model.Items.OrderBy(x => x.OrderNo))
                 {
-                    <span class="badge text-bg-success">已完成</span>
+                    <li class="list-group-item">
+                        <div class="d-flex justify-content-between">
+                            <div>
+                                <div class="fw-semibold">@item.VideoTitle</div>
+                                <div class="small text-muted">
+                                    次數：@item.ActualReps?.ToString() 次
+                                    ，重量：@item.ActualWeight?.ToString() Kg
+                                    ，時長：@item.ActualDurationSec?.ToString() 秒
+                                    ，休息：@item.ActualRestSec?.ToString() 秒
+                                    ，回合：@item.RoundsDone?.ToString()
+                                </div>
+                            </div>
+                            <button class="btn btn-sm btn-outline-primary"
+                                    type="button"
+                                    data-bs-toggle="collapse"
+                                    data-bs-target="#edit-@item.SessionItemID">
+                                編輯
+                            </button>
+                        </div>
+
+                        <div class="collapse mt-2" id="edit-@item.SessionItemID">
+                            <form asp-action="UpdateItem" asp-controller="TrainingSessions" method="post" class="row g-2">
+                                @Html.AntiForgeryToken()
+                                <input type="hidden" name="SessionID" value="@Model.SessionID" />
+                                <input type="hidden" name="SessionItemID" value="@item.SessionItemID" />
+
+                                <div class="col-6 col-md-2">
+                                    <label class="form-label">狀態</label>
+                                    <select name="Status" class="form-select">
+                                        <option value="Done" selected="@(item.Status == "Done" ? "selected" : null)">完成</option>
+                                        <option value="Partial" selected="@(item.Status == "Partial" ? "selected" : null)">部分</option>
+                                        <option value="Skipped" selected="@(item.Status == "Skipped" ? "selected" : null)">略過</option>
+                                    </select>
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <label class="form-label">次數</label>
+                                    <input type="number" name="ActualReps" class="form-control" value="@item.ActualReps" />
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <label class="form-label">重量</label>
+                                    <input type="number" name="ActualWeight" class="form-control" value="@item.ActualWeight" />
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <label class="form-label">時長(秒)</label>
+                                    <input type="number" name="ActualDurationSec" class="form-control" value="@item.ActualDurationSec" />
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <label class="form-label">休息(秒)</label>
+                                    <input type="number" name="ActualRestSec" class="form-control" value="@item.ActualRestSec" />
+                                </div>
+                                <div class="col-6 col-md-2">
+                                    <label class="form-label">回合</label>
+                                    <input type="number" name="RoundsDone" class="form-control" value="@item.RoundsDone" />
+                                </div>
+                                <div class="col-12">
+                                    <label class="form-label">備註</label>
+                                    <input type="text" name="Note" class="form-control" value="@item.Note" />
+                                </div>
+                                <div class="col-12">
+                                    <button class="btn btn-primary btn-sm" type="submit">儲存</button>
+                                </div>
+                            </form>
+                        </div>
+                    </li>
                 }
-                else
-                {
-                    <span class="badge text-bg-warning text-dark">進行中</span>
-                }
-            </div>
+            </ol>
         </div>
     </div>
 </div>
-
-<!-- 結束訓練（非 AJAX）：送到 TrainingSessionsController.Complete -->
-<div class="card mb-4">
-    <div class="card-header">結束訓練</div>
-    <div class="card-body">
-        <form asp-action="Complete" asp-route-id="@Model.SessionID" method="post" class="mt-3">
-            @Html.AntiForgeryToken()
-            <div class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label">消耗卡路里 (kcal)</label>
-                    <input name="calories" type="number" class="form-control" value="@Model.CaloriesBurned" />
-                </div>
-                <div class="col-md-4">
-                    <label class="form-label">獲得點數</label>
-                    <input name="points" type="number" class="form-control" value="@Model.PointsAwarded" />
-                </div>
-                <div class="col-12">
-                    <label class="form-label">備註</label>
-                    <textarea name="note" class="form-control">@Model.Notes</textarea>
-                </div>
-            </div>
-            <button type="submit" class="btn btn-primary mt-3">儲存變更</button>
-        </form>
-
-
-        @if (isCompleted)
-        {
-            <div class="text-muted small mt-2">
-                這場訓練已於 @FormatUtc(Model.EndedAt ?? Model.StartedAt) 結束。
-                你仍可於清單或此頁查看內容。
-            </div>
-        }
-    </div>
-</div>
-
-<!-- 項目列表 -->
-<div class="card">
-    <div class="card-header">訓練步驟</div>
-    <div class="card-body">
-        @if (Model.Items?.Any() == true)
-        {
-            <div class="table-responsive">
-                <table class="table align-middle">
-                    <thead>
-                        <tr>
-                            <th style="width: 60px;">#</th>
-                            <th>影片 / 動作</th>
-                            <th style="width: 110px;">狀態</th>
-                            <th style="width: 90px;">次數</th>
-                            <th style="width: 90px;">重量</th>
-                            <th style="width: 110px;">時長(秒)</th>
-                            <th style="width: 110px;">休息(秒)</th>
-                            <th style="width: 90px;">回合</th>
-                            <th>備註</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var i in Model.Items.OrderBy(x => x.OrderNo))
-                        {
-                            <tr>
-                                <td>@i.OrderNo</td>
-                                <td>@i.VideoTitle</td>
-                                <td>@i.Status</td>
-                                <td>@(i.ActualReps?.ToString() ?? "-")</td>
-                                <td>@(i.ActualWeight?.ToString() ?? "-")</td>
-                                <td>@(i.ActualDurationSec?.ToString() ?? "-")</td>
-                                <td>@(i.ActualRestSec?.ToString() ?? "-")</td>
-                                <td>@(i.RoundsDone?.ToString() ?? "-")</td>
-                                <td>@(string.IsNullOrWhiteSpace(i.Note) ? "-" : i.Note)</td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        }
-        else
-        {
-            <div class="text-muted">沒有步驟項目。</div>
-        }
-    </div>
-</div>
-
-@section Scripts {
-    @{
-        await Html.RenderPartialAsync("_ValidationScriptsPartial");
-    }
-}

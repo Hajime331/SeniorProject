@@ -93,11 +93,14 @@
                                     </div>
                                     <div class="mt-auto d-flex flex-wrap gap-2">
                                         <a asp-action="Details" asp-route-id="@set.SetId" class="btn btn-sm btn-outline-primary">查看</a>
-                                        <form asp-action="Start" method="post" class="d-inline">
+                                        <form asp-controller="TrainingSessions" asp-action="Start" method="post" class="d-inline">
                                             @Html.AntiForgeryToken()
-                                            <input type="hidden" name="id" value="@set.SetId" />
+                                            <input type="hidden" name="setId" value="@set.SetId" />
                                             <button type="submit" class="btn btn-sm btn-primary">開始訓練</button>
                                         </form>
+
+
+
                                     </div>
                                 </div>
                             </div>

@@ -296,6 +296,26 @@ public class TrainingSetsController : ControllerBase
         var isOwner = set.OwnerMemberID == me;
         if (!isOwner && !User.IsAdmin()) return Forbid();
 
+        // 先查這個 Set 是否曾出現在任何 Session / SessionItem
+        var anySessionForSet = await _db.TrainingSessions.AnyAsync(s => s.SetID == id);
+        // 或者是否有任何 SetItem 被 SessionItem 參考
+        var setItemIds = await _db.TrainingSetItems
+                                  .Where(i => i.SetID == id)
+                                  .Select(i => i.SetItemID)
+                                  .ToListAsync();
+        var anySessionItemRef = setItemIds.Count > 0
+            && await _db.TrainingSessionItems.AnyAsync(si => setItemIds.Contains(si.SetItemID));
+
+        if (anySessionForSet || anySessionItemRef)
+        {
+            // ★ 有被用過 → 不允許物理刪除，改為封存
+            set.Status = "Archived";
+            set.UpdatedAt = DateTime.UtcNow;
+            await _db.SaveChangesAsync();
+            return Ok(new { archived = true });
+        }
+
+        // ★ 沒被使用 → 可以物理刪除
         var items = await _db.TrainingSetItems.Where(i => i.SetID == id).ToListAsync();
         var maps = await _db.SetTagMaps.Where(m => m.SetID == id).ToListAsync();
         _db.TrainingSetItems.RemoveRange(items);
@@ -305,6 +325,7 @@ public class TrainingSetsController : ControllerBase
         await _db.SaveChangesAsync();
         return NoContent();
     }
+
 
     // 共用：將單筆 Set 投影成 Detail DTO
     private async Task<TrainingSetDetailDto> ProjectDetail(Guid id)
