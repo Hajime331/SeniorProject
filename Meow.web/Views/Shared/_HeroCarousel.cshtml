@@ -1,0 +1,42 @@
+﻿@* 滿版主視覺輪播：3 張 *@
+<div id="heroCarousel" class="carousel slide hero-carousel" data-bs-ride="carousel" data-bs-touch="true" data-bs-interval="5000" data-bs-pause="hover">
+    <!-- 指示點 -->
+    <div class="carousel-indicators">
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="0" class="active" aria-current="true" aria-label="Slide 1"></button>
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="1" aria-label="Slide 2"></button>
+        <button type="button" data-bs-target="#heroCarousel" data-bs-slide-to="2" aria-label="Slide 3"></button>
+    </div>
+
+    <!-- 幻燈片 -->
+    <div class="carousel-inner">
+        <div class="carousel-item active">
+            <img src="~/images/hero/hero1.jpg" asp-append-version="true" class="d-block w-100" alt="重訓訓練區">
+            <div class="carousel-caption text-start d-none d-md-block">
+                <h2 class="fw-bold">No pain no gain</h2>
+                <p class="mb-0">啟動你的訓練旅程</p>
+            </div>
+        </div>
+        <div class="carousel-item">
+            <img src="~/images/hero/hero2.jpg" asp-append-version="true" class="d-block w-100" alt="自由重量區">
+            <div class="carousel-caption d-none d-md-block">
+                <h2 class="fw-bold">精準刻劃每一次動作</h2>
+                <p class="mb-0">專注、穩定、累積</p>
+            </div>
+        </div>
+        <div class="carousel-item">
+            <img src="~/images/hero/hero3.jpg" asp-append-version="true" class="d-block w-100" alt="有氧與伸展">
+            <div class="carousel-caption text-end d-none d-md-block">
+                <h2 class="fw-bold">恢復與調整</h2>
+                <p class="mb-0">讓身體為下一次訓練做好準備</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- 上一張 / 下一張 -->
+    <button class="carousel-control-prev" type="button" data-bs-target="#heroCarousel" data-bs-slide="prev" aria-label="上一張">
+        <span class="carousel-control-prev-icon" aria-hidden="true"></span>
+    </button>
+    <button class="carousel-control-next" type="button" data-bs-target="#heroCarousel" data-bs-slide="next" aria-label="下一張">
+        <span class="carousel-control-next-icon" aria-hidden="true"></span>
+    </button>
+</div>

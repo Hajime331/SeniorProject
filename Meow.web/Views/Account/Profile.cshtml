@@ -1,11 +1,11 @@
 @model AccountProfileVm
 @{
-    ViewData["Title"] = "會員中心 - 個人資料";
+    ViewData["Title"] = "會員中心";
     var placeholder = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='120' height='120'><rect width='120' height='120' fill='%23dddddd'/><text x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-size='18' fill='%23666'>Avatar</text></svg>";
     var avatarSrc = string.IsNullOrWhiteSpace(Model.AvatarUrl) ? placeholder : Model.AvatarUrl;
 }
 
-<h2>會員中心 - 個人資料</h2>
+<h2>會員中心</h2>
 
 <form asp-action="Profile" method="post" enctype="multipart/form-data" class="mt-3">
     @Html.AntiForgeryToken()
@@ -90,7 +90,7 @@
     </div>
 
     <div class="mt-3">
-        <button type="submit" class="btn btn-primary">儲存變更</button>
+        <button type="submit" class="btn btn-primary">儲存</button>
     </div>
 </form>
 
